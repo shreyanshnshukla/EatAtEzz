@@ -1,5 +1,5 @@
 # EatAtEzz 🍽️
-**Lucknow's food, found by its people**
+**India's food, found by its people**
 
 A hyperlocal food discovery app for Lucknow's street food culture.
 
