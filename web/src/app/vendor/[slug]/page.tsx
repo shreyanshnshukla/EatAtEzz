@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DietBadge } from "@/components/DietBadge";
 import { VendorCard } from "@/components/VendorCard";
-import { getSimilar, getVendor } from "@/lib/data";
+import { getPlaylistsForVendor, getSimilar, getVendor } from "@/lib/data";
 import { cleanName, directionsUrl, mapsUrl, SITE_URL } from "@/lib/format";
 
 export const revalidate = 3600;
@@ -27,7 +27,7 @@ export default async function VendorPage({ params }: { params: Params }) {
   const { slug } = await params;
   const v = await getVendor(slug);
   if (!v) notFound();
-  const similar = await getSimilar(v);
+  const [similar, inPlaylists] = await Promise.all([getSimilar(v), getPlaylistsForVendor(v.id)]);
   const name = cleanName(v.name);
 
   const jsonLd = {
@@ -79,6 +79,22 @@ export default async function VendorPage({ params }: { params: Params }) {
             )}
           </div>
           {v.landmark ? <p className="mt-4 text-sm text-muted">Landmark: {v.landmark}</p> : null}
+          {inPlaylists.length ? (
+            <div className="mt-6">
+              <p className="text-sm text-muted">Featured in</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {inPlaylists.map((pl) => (
+                  <Link
+                    key={pl.slug}
+                    href={`/playlist/${pl.slug}`}
+                    className="rounded-full border border-line bg-card px-3 py-1.5 text-sm text-cream hover:border-caramel"
+                  >
+                    {pl.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <aside className="h-fit rounded-2xl border border-line bg-card p-6">
@@ -96,7 +112,7 @@ export default async function VendorPage({ params }: { params: Params }) {
               href={directionsUrl(v.google_place_id, v.name)}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-xl bg-beige px-4 py-3 text-center font-medium text-ink hover:bg-cream"
+              className="rounded-xl border border-beige/50 bg-beige/10 px-4 py-3 text-center font-medium text-beige hover:bg-beige/20"
             >
               Get directions
             </a>

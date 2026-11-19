@@ -7,7 +7,7 @@ import type { Area } from "@/lib/types";
 const KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
 const STYLE = KEY
   ? `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${KEY}`
-  : "https://tiles.openfreemap.org/styles/positron";
+  : "https://tiles.openfreemap.org/styles/fiord";
 
 /** Lucknow map with one bubble per area, sized by how many food spots it has. */
 export function AreaMap({ areas, height = 420 }: { areas: Area[]; height?: number }) {
@@ -50,9 +50,9 @@ export function AreaMap({ areas, height = 420 }: { areas: Area[]; height?: numbe
           type: "circle",
           source: "areas",
           paint: {
-            "circle-color": "#DCC6A0",
-            "circle-opacity": 0.85,
-            "circle-stroke-color": "#7A5A36",
+            "circle-color": "#7A5A36",
+            "circle-opacity": 0.9,
+            "circle-stroke-color": "#DCC6A0",
             "circle-stroke-width": 1.5,
             "circle-radius": ["interpolate", ["linear"], ["get", "count"], 1, 8, 20, 16, 80, 30],
           },
@@ -66,7 +66,7 @@ export function AreaMap({ areas, height = 420 }: { areas: Area[]; height?: numbe
             "text-size": 12,
             "text-allow-overlap": true,
           },
-          paint: { "text-color": "#14110E" },
+          paint: { "text-color": "#F6EEDC" },
         });
 
         map.on("mouseenter", "area-bubbles", () => {

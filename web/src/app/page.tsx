@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { AreaMap } from "@/components/AreaMap";
 import { DietBadge } from "@/components/DietBadge";
-import { LogoMark } from "@/components/Logo";
-import { getAreas, getDishes, getVendorCount } from "@/lib/data";
+import { PlaylistCard } from "@/components/PlaylistCard";
+import { getAreas, getDishes, getPlaylists, getVendorCount } from "@/lib/data";
 
 export const revalidate = 3600;
 
@@ -18,7 +18,18 @@ const CRAVINGS = [
 ];
 
 export default async function Home() {
-  const [areas, dishes, vendorCount] = await Promise.all([getAreas(), getDishes(), getVendorCount()]);
+  const [areas, dishes, vendorCount, playlists] = await Promise.all([
+    getAreas(),
+    getDishes(),
+    getVendorCount(),
+    getPlaylists(),
+  ]);
+  const heroLists = ["galouti-gang", "chaat-pe-charcha", "kulfi-kingdom"]
+    .map((s) => playlists.find((p) => p.slug === s))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
+  const featuredLists = playlists.filter((p) =>
+    ["biryani-bhai-log", "kachori-before-class", "nihari-before-noon", "plant-plate-lucknow", "underrated-gems", "hazratganj-evening-walk"].includes(p.slug),
+  );
   const topAreas = areas.slice(0, 8);
   const featured = dishes.slice(0, 6);
 
@@ -40,7 +51,7 @@ export default async function Home() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/decide"
-              className="rounded-xl bg-beige px-6 py-3.5 font-medium text-ink transition hover:bg-cream"
+              className="rounded-xl border border-beige/50 bg-beige/10 px-6 py-3.5 font-medium text-beige transition hover:bg-beige/20"
             >
               Decide for me
             </Link>
@@ -66,11 +77,19 @@ export default async function Home() {
             </div>
           </dl>
         </div>
-        <div className="relative mx-auto hidden aspect-square w-full max-w-sm items-center justify-center rounded-[40px] border border-line bg-card md:flex">
-          <LogoMark size={220} />
-          <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-line bg-ink px-4 py-1.5 text-sm text-beige">
-            Muskuraiye, aap Lucknow mein hain
-          </span>
+        <div className="relative hidden h-[420px] md:block" aria-label="Featured food playlists">
+          {heroLists.map((p, i) => (
+            <Link
+              key={p.id}
+              href={`/playlist/${p.slug}`}
+              className="absolute w-72 rounded-2xl border border-line bg-card p-5 shadow-2xl shadow-black/40 transition hover:z-10 hover:border-caramel"
+              style={{ top: `${i * 120}px`, left: `${[40, 0, 70][i]}px`, transform: `rotate(${[-3, 2, -1][i]}deg)` }}
+            >
+              <p className="text-xs text-muted">Playlist · {p.item_count} spots</p>
+              <p className="mt-2 font-display text-2xl text-cream">{p.title}</p>
+              <p className="mt-1 text-sm italic text-caramel">{p.tagline}</p>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -87,6 +106,24 @@ export default async function Home() {
               <p className="font-display text-xl text-cream">{c.label}</p>
               <p className="mt-1 text-sm text-muted">{c.note}</p>
             </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Food Playlists */}
+      <section className="mx-auto max-w-6xl px-4 py-10" aria-labelledby="playlists">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 id="playlists" className="font-display text-3xl text-cream">Food Playlists</h2>
+            <p className="mt-2 text-muted">Trails picked for a mood: veg, non-veg, vegan, underrated, by area.</p>
+          </div>
+          <Link href="/playlists" className="text-sm text-beige underline-offset-4 hover:underline">
+            All {playlists.length}
+          </Link>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {featuredLists.map((p) => (
+            <PlaylistCard key={p.id} p={p} />
           ))}
         </div>
       </section>
@@ -173,7 +210,7 @@ export default async function Home() {
           </div>
           <a
             href="mailto:hello@eatatezz.in?subject=Claim%20my%20listing"
-            className="rounded-xl bg-beige px-6 py-3.5 font-medium text-ink transition hover:bg-cream"
+            className="rounded-xl border border-beige/50 bg-beige/10 px-6 py-3.5 font-medium text-beige transition hover:bg-beige/20"
           >
             Get early access
           </a>

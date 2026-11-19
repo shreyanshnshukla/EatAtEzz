@@ -68,7 +68,7 @@ export function DecideClient({ areas, categories }: { areas: Area[]; categories:
           type="button"
           onClick={decide}
           disabled={state === "loading"}
-          className="h-12 w-full rounded-xl bg-beige font-medium text-ink transition hover:bg-cream disabled:opacity-60"
+          className="h-12 w-full rounded-xl border border-beige/50 bg-beige/10 font-medium text-beige transition hover:bg-beige/20 disabled:opacity-60"
         >
           {state === "loading" ? "Picking…" : pick ? "Pick another" : "Decide for me"}
         </button>
@@ -100,7 +100,7 @@ export function DecideClient({ areas, categories }: { areas: Area[]; categories:
                 href={directionsUrl(pick.google_place_id, pick.name)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-xl bg-beige px-4 py-2.5 text-sm font-medium text-ink hover:bg-cream"
+                className="rounded-xl border border-beige/50 bg-beige/10 px-4 py-2.5 text-sm font-medium text-beige hover:bg-beige/20"
               >
                 Get directions
               </a>

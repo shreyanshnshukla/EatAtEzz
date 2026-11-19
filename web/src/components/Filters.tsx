@@ -95,7 +95,7 @@ export function Filters({ areas, categories, hideArea }: Props) {
       </select>
       <button
         type="submit"
-        className="h-11 rounded-xl bg-beige px-5 text-sm font-medium text-ink transition hover:bg-cream"
+        className="h-11 rounded-xl border border-beige/50 bg-beige/10 px-5 text-sm font-medium text-beige transition hover:bg-beige/20"
       >
         Search
       </button>

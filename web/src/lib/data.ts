@@ -1,5 +1,5 @@
 import { supabase, CITY } from "./supabase";
-import type { Area, Dish, VendorCard } from "./types";
+import type { Area, Dish, Playlist, VendorCard } from "./types";
 
 export const PAGE_SIZE = 48;
 
@@ -113,4 +113,66 @@ export async function getSimilar(v: VendorCard, limit = 6) {
     list = (more ?? []) as VendorCard[];
   }
   return list;
+}
+
+type PlaylistRow = {
+  id: string;
+  slug: string;
+  title: string;
+  tagline: string | null;
+  description: string | null;
+  section: Playlist["section"];
+  curator: string;
+  playlist_items: { position: number; vendors: { name: string } | null }[];
+};
+
+function toPlaylist(r: PlaylistRow): Playlist {
+  const items = [...(r.playlist_items ?? [])].sort((a, b) => a.position - b.position);
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    tagline: r.tagline,
+    description: r.description,
+    section: r.section,
+    curator: r.curator,
+    item_count: items.length,
+    preview: items.slice(0, 3).map((i) => i.vendors?.name ?? "").filter(Boolean),
+  };
+}
+
+export async function getPlaylists(): Promise<Playlist[]> {
+  const { data, error } = await supabase
+    .from("playlists")
+    .select("id, slug, title, tagline, description, section, curator, position, playlist_items(position, vendors(name))")
+    .eq("is_published", true)
+    .order("position");
+  if (error) throw error;
+  return ((data ?? []) as unknown as PlaylistRow[]).map(toPlaylist);
+}
+
+export async function getPlaylist(slug: string) {
+  const { data, error } = await supabase
+    .from("playlists")
+    .select("id, slug, title, tagline, description, section, curator, playlist_items(position, vendor_id, vendors(name))")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const row = data as unknown as PlaylistRow & { playlist_items: { position: number; vendor_id: string }[] };
+  const order = [...row.playlist_items].sort((a, b) => a.position - b.position).map((i) => i.vendor_id);
+  const { data: cards } = await supabase.from("vendor_cards").select("*").in("id", order);
+  const byId = new Map(((cards ?? []) as VendorCard[]).map((c) => [c.id, c]));
+  const vendors = order.map((id) => byId.get(id)).filter((v): v is VendorCard => Boolean(v));
+  return { playlist: toPlaylist(row), vendors };
+}
+
+export async function getPlaylistsForVendor(vendorId: string) {
+  const { data } = await supabase
+    .from("playlist_items")
+    .select("playlists(slug, title)")
+    .eq("vendor_id", vendorId);
+  return ((data ?? []) as unknown as { playlists: { slug: string; title: string } | null }[])
+    .map((r) => r.playlists)
+    .filter((p): p is { slug: string; title: string } => Boolean(p));
 }

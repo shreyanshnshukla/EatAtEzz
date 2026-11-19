@@ -31,6 +31,8 @@ Get the key from Supabase → Project Settings → API keys. The anon/publishabl
 | `/vendor/[slug]` | Shop page: speciality, diet, directions, similar spots, JSON-LD |
 | `/dishes` | Lucknow's famous veg, non-veg and vegan dishes |
 | `/decide` | "Decide for me": picks one spot from your area, diet and craving |
+| `/playlists`, `/playlist/[slug]` | 24 Food Playlists (non-veg, veg, vegan, underrated, area walks) |
+| `/login`, `/account` | Google sign-in and a simple account page |
 | `/sitemap.xml`, `/robots.txt` | Generated for SEO |
 
 ## Database
@@ -38,6 +40,20 @@ Get the key from Supabase → Project Settings → API keys. The anon/publishabl
 Schema: `supabase/migrations/0001_schema.sql` (cities, areas, vendors, dishes, profiles, reviews, saved_vendors, the `vendor_cards` view, and the `decide_for_me` / `nearby_vendors` functions). It is already applied to the `eatatezz` Supabase project.
 
 Vendor locations: `vendors.location` is empty for now. Fill it from on-the-ground checks (or a licensed source) and set `is_verified = true`. Google Place IDs are stored so pages can link to Google Maps directions.
+
+## Turn on Google sign-in (one-time, about 10 minutes)
+
+1. **Google Cloud Console** → APIs & Services → OAuth consent screen → set it up (External, app name EatAtEzz, your email).
+2. **Credentials → Create credentials → OAuth client ID → Web application.**
+   - Authorized JavaScript origins: `http://localhost:3000` and your live site URL.
+   - Authorized redirect URI: `https://giugizffyakajeyvctla.supabase.co/auth/v1/callback`
+   - Copy the **Client ID** and **Client secret**.
+3. **Supabase dashboard → Authentication → Sign In / Providers → Google** → enable, paste the Client ID and secret, save.
+4. **Supabase → Authentication → URL Configuration:**
+   - Site URL: your live site URL (or `http://localhost:3000` while testing).
+   - Redirect URLs: add `http://localhost:3000/auth/callback` and `https://YOUR-SITE/auth/callback`.
+
+New users get a row in `profiles` automatically (name and photo from Google).
 
 ## Deploy on Netlify
 
@@ -47,6 +63,6 @@ Vendor locations: `vendors.location` is empty for now. Fill it from on-the-groun
 
 ## Next up
 
-- Sign-in (Google) and reviews/saved spots (tables and RLS are ready)
+- Reviews, saved spots and user-made playlists (tables and RLS are ready)
 - Verified locations → per-vendor pins and "near me"
 - Vendor claim flow

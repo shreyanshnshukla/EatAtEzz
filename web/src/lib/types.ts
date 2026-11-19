@@ -37,3 +37,17 @@ export type Dish = {
   famous_at: string | null;
   season: string | null;
 };
+
+export type PlaylistSection = "non_veg" | "veg" | "vegan" | "underrated" | "area";
+
+export type Playlist = {
+  id: string;
+  slug: string;
+  title: string;
+  tagline: string | null;
+  description: string | null;
+  section: PlaylistSection;
+  curator: string;
+  item_count: number;
+  preview: string[];
+};
