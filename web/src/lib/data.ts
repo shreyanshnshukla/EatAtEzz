@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { supabase, CITY } from "./supabase";
 import type { Area, Dish, Playlist, VendorCard } from "./types";
 
@@ -11,8 +12,9 @@ export type VendorFilters = {
   page?: number;
 };
 
-function escapeLike(s: string) {
-  return s.replace(/[\\%_,()]/g, (c) => `\\${c}`);
+/** PostgREST `or()` filters break on these characters, so drop them from search input. */
+function cleanTerm(s: string) {
+  return s.replace(/[\\%_,().*:"]/g, " ").trim().slice(0, 60);
 }
 
 export async function getVendors(f: VendorFilters = {}) {
@@ -28,8 +30,8 @@ export async function getVendors(f: VendorFilters = {}) {
   if (f.diet === "vegan") query = query.eq("diet", "vegan");
   if (f.diet === "non_veg") query = query.in("diet", ["non_veg", "both"]);
   if (f.q) {
-    const q = escapeLike(f.q.trim().slice(0, 60));
-    query = query.or(`name.ilike.%${q}%,speciality.ilike.%${q}%,category.ilike.%${q}%`);
+    const q = cleanTerm(f.q);
+    if (q) query = query.or(`name.ilike.%${q}%,speciality.ilike.%${q}%,category.ilike.%${q}%`);
   }
 
   const from = (page - 1) * PAGE_SIZE;
@@ -42,7 +44,7 @@ export async function getVendors(f: VendorFilters = {}) {
   return { vendors: (data ?? []) as VendorCard[], total: count ?? 0, page };
 }
 
-export async function getVendor(slug: string) {
+export const getVendor = cache(async (slug: string) => {
   const { data, error } = await supabase
     .from("vendor_cards")
     .select("*")
@@ -50,9 +52,9 @@ export async function getVendor(slug: string) {
     .maybeSingle();
   if (error) throw error;
   return data as VendorCard | null;
-}
+});
 
-export async function getAreas(): Promise<Area[]> {
+export const getAreas = cache(async (): Promise<Area[]> => {
   const { data, error } = await supabase
     .from("areas")
     .select("slug, name, lat, lng, cities!inner(slug), vendors(count)")
@@ -68,13 +70,13 @@ export async function getAreas(): Promise<Area[]> {
     }))
     .filter((a) => a.vendor_count > 0)
     .sort((a, b) => b.vendor_count - a.vendor_count);
-}
+});
 
-export async function getCategories(): Promise<string[]> {
+export const getCategories = cache(async (): Promise<string[]> => {
   const { data, error } = await supabase.from("vendor_cards").select("category").eq("city_slug", CITY);
   if (error) throw error;
   return Array.from(new Set((data ?? []).map((r) => r.category as string))).sort();
-}
+});
 
 export async function getDishes(): Promise<Dish[]> {
   const { data, error } = await supabase
@@ -141,7 +143,7 @@ function toPlaylist(r: PlaylistRow): Playlist {
   };
 }
 
-export async function getPlaylists(): Promise<Playlist[]> {
+export const getPlaylists = cache(async (): Promise<Playlist[]> => {
   const { data, error } = await supabase
     .from("playlists")
     .select("id, slug, title, tagline, description, section, curator, position, playlist_items(position, vendors(name))")
@@ -149,9 +151,9 @@ export async function getPlaylists(): Promise<Playlist[]> {
     .order("position");
   if (error) throw error;
   return ((data ?? []) as unknown as PlaylistRow[]).map(toPlaylist);
-}
+});
 
-export async function getPlaylist(slug: string) {
+export const getPlaylist = cache(async (slug: string) => {
   const { data, error } = await supabase
     .from("playlists")
     .select("id, slug, title, tagline, description, section, curator, owner_id, playlist_items(position, vendor_id, vendors(name))")
@@ -165,7 +167,7 @@ export async function getPlaylist(slug: string) {
   const byId = new Map(((cards ?? []) as VendorCard[]).map((c) => [c.id, c]));
   const vendors = order.map((id) => byId.get(id)).filter((v): v is VendorCard => Boolean(v));
   return { playlist: toPlaylist(row), vendors, ownerId: row.owner_id };
-}
+});
 
 export async function getPlaylistsForVendor(vendorId: string) {
   const { data } = await supabase

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { DecideClient } from "@/components/DecideClient";
 import { getAreas, getCategories } from "@/lib/data";
 
-export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Decide for me: what to eat in Lucknow",

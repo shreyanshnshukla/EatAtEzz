@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 /** Supabase client for Server Components, Route Handlers and Server Actions, tied to the user's session cookies. */
 export async function createSupabaseServer() {
@@ -24,10 +25,11 @@ export async function createSupabaseServer() {
   );
 }
 
-export async function getUser() {
+/** Current user, fetched once per request (Header and page share it). */
+export const getUser = cache(async () => {
   const supabase = await createSupabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});

@@ -34,7 +34,7 @@ export default function Explore() {
       if (diet === "veg") query = query.in("diet", ["veg", "vegan"]);
       if (diet === "vegan") query = query.eq("diet", "vegan");
       if (diet === "non_veg") query = query.in("diet", ["non_veg", "both"]);
-      const term = q.trim().replace(/[\\%_,()]/g, "");
+      const term = q.replace(/[\\%_,().*:"]/g, " ").trim().slice(0, 60);
       if (term) query = query.or(`name.ilike.%${term}%,speciality.ilike.%${term}%,category.ilike.%${term}%`);
       const { data, error: err } = await query.order("name").range(from, from + PAGE - 1);
       busy.current = false;
@@ -48,7 +48,6 @@ export default function Explore() {
       setItems((prev) => (reset ? rows : [...prev, ...rows]));
       setDone(rows.length < PAGE);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [q, diet],
   );
 

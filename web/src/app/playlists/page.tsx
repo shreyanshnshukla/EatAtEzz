@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { getPlaylists } from "@/lib/data";
 import type { Playlist } from "@/lib/types";
@@ -26,7 +27,7 @@ export default async function Playlists() {
       <p className="text-sm uppercase tracking-[0.2em] text-caramel">Food Playlists</p>
       <h1 className="mt-2 font-display text-4xl text-cream md:text-5xl">Lucknow, one playlist at a time</h1>
       <p className="mt-3 max-w-2xl text-muted">
-        Trails picked by the EatAtEzz team and by Lucknow foodies. <a href="/account" className="text-beige underline underline-offset-4">Make your own</a>.
+        Trails picked by the EatAtEzz team and by Lucknow foodies. <Link href="/account" className="text-beige underline underline-offset-4">Make your own</Link>.
       </p>
       {SECTIONS.map((s) => {
         const list = playlists.filter((p) => p.section === s.key && (p.section !== "community" || p.item_count >= 3));

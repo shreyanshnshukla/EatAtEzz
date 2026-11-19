@@ -7,7 +7,6 @@ import { VendorCard } from "@/components/VendorCard";
 import { getAreas, getCategories, getVendors } from "@/lib/data";
 import { SITE_URL } from "@/lib/format";
 
-export const revalidate = 3600;
 
 type Params = Promise<{ slug: string }>;
 type SP = Promise<{ q?: string; category?: string; diet?: string }>;

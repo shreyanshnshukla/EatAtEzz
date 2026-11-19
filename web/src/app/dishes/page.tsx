@@ -4,7 +4,6 @@ import { DietBadge } from "@/components/DietBadge";
 import { getDishes } from "@/lib/data";
 import type { Diet } from "@/lib/types";
 
-export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: "Famous food of Lucknow: veg, non-veg and vegan",

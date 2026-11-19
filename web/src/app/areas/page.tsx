@@ -3,7 +3,6 @@ import Link from "next/link";
 import { AreaMap } from "@/components/AreaMap";
 import { getAreas } from "@/lib/data";
 
-export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Street food in Lucknow by area",

@@ -13,7 +13,7 @@
       "package": "com.eatatezz.app",
       "adaptiveIcon": { "backgroundColor": "#14110E" }
     },
-    "plugins": ["expo-router", "expo-web-browser"],
+    "plugins": ["expo-router"],
     "experiments": { "typedRoutes": false }
   }
 }

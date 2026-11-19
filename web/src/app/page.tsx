@@ -4,7 +4,6 @@ import { DietBadge } from "@/components/DietBadge";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { getAreas, getDishes, getPlaylists, getVendorCount } from "@/lib/data";
 
-export const revalidate = 3600;
 
 const CRAVINGS = [
   { label: "Kebabs", category: "Kebabs", note: "Galouti, seekh, kakori" },
