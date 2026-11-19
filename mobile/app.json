@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "EatAtEzz",
+    "slug": "eatatezz",
+    "scheme": "eatatezz",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#14110E",
+    "splash": { "backgroundColor": "#14110E" },
+    "ios": { "bundleIdentifier": "com.eatatezz.app", "supportsTablet": false },
+    "android": {
+      "package": "com.eatatezz.app",
+      "adaptiveIcon": { "backgroundColor": "#14110E" }
+    },
+    "plugins": ["expo-router", "expo-web-browser"],
+    "experiments": { "typedRoutes": false }
+  }
+}

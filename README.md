@@ -1,87 +1,23 @@
-# EatAtEzz 🍽️
-**India's food, found by its people**
+# EatAtEzz
 
-A hyperlocal food discovery app for Lucknow's street food culture.
+**Kya khaun? Sorted.** Hyperlocal street food discovery for Lucknow.
 
----
+```
+eatatezz/
+├── web/      Next.js website + landing page  →  see web/README.md
+└── mobile/   Expo app (simple, dark)         →  see mobile/README.md
+```
 
-## Setup
+Both use one Supabase project (`eatatezz`, Mumbai): 504 Lucknow food spots, 60 areas, 37 famous dishes and 24 Food Playlists. Schema and seed data live in `web/supabase/`.
+
+## Quick start
 
 ```bash
-# 1. Install dependencies
-npm install
+# Website
+cd web && npm install && cp .env.example .env.local && npm run dev
 
-# 2. Install expo-specific versions
-npx expo install
-
-# 3. Start Metro
-npx expo start --clear
-
-# 4. Run on Android
-# - Press 'a' in Metro terminal, OR
-# - Scan QR with Expo Go app
+# App
+cd mobile && npm install && npx expo install --fix && cp .env.example .env && npx expo start
 ```
 
----
-
-## Project Structure
-
-```
-EatAtEzz/
-├── app/
-│   ├── _layout.tsx              # Root layout
-│   ├── index.tsx                # Entry redirect
-│   ├── onboarding/
-│   │   ├── welcome.tsx          # Splash / welcome screen
-│   │   ├── choose-type.tsx      # Foodie vs Vendor picker
-│   │   └── setup-profile.tsx   # Name + avatar setup
-│   └── (tabs)/
-│       ├── _layout.tsx          # Tab bar
-│       ├── index.tsx            # Home / Explore feed
-│       ├── lists.tsx            # Food lists
-│       ├── add.tsx              # Add a new spot
-│       ├── search.tsx           # Search screen
-│       └── profile.tsx          # User profile
-├── constants/
-│   └── theme.ts                 # Colors, typography, spacing
-├── hooks/
-│   └── useStore.ts              # Zustand global state
-├── babel.config.js
-├── app.json
-└── package.json
-```
-
----
-
-## Screens Built
-
-| Screen | Status |
-|--------|--------|
-| Welcome splash | ✅ |
-| Foodie vs Vendor picker | ✅ |
-| Profile setup | ✅ |
-| Home / Explore feed | ✅ |
-| Food lists | ✅ |
-| Add a spot | ✅ |
-| Search | ✅ |
-| Profile | ✅ |
-
----
-
-## Next Steps
-
-- [ ] Connect Firebase / Supabase for real data
-- [ ] Google Maps integration for spot locations
-- [ ] Photo upload with Firebase Storage
-- [ ] Auth (phone OTP for Indian users)
-- [ ] Vendor promotion / ads system
-- [ ] Push notifications
-
----
-
-## Tech Stack
-- React Native + Expo (SDK 51)
-- Expo Router (file-based navigation)
-- Zustand (state management)
-- expo-linear-gradient
-- TypeScript
+Google sign-in setup (one-time): see `web/README.md` → "Turn on Google sign-in".
