@@ -21,7 +21,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_3EbuGww4Iw0EG7SN1-xVSQ_ULyP42mv
       NEXT_PUBLIC_SITE_URL: https://eatatezz.netlify.app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -36,7 +36,7 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
