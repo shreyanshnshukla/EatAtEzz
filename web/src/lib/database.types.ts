@@ -591,6 +591,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      delete_my_account: { Args: never; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
       nearby_vendors: {
         Args: { p_lat: number; p_lng: number; p_radius_m?: number }

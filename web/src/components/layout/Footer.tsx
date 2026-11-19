@@ -36,7 +36,12 @@ export function Footer() {
           </p>
         </div>
       </div>
-      <p className="pb-8 text-center text-xs text-muted">© {new Date().getFullYear()} EatAtEzz · Made in Lucknow</p>
+      <p className="pb-8 text-center text-xs text-muted">
+        © {new Date().getFullYear()} EatAtEzz · Made in Lucknow ·{" "}
+        <Link className="hover:text-cream" href="/privacy">Privacy</Link> ·{" "}
+        <Link className="hover:text-cream" href="/terms">Terms</Link> ·{" "}
+        <a className="hover:text-cream" href="https://github.com/shreyanshnshukla/EatAtEzz/blob/main/SECURITY.md">Security</a>
+      </p>
     </footer>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DeleteAccount } from "@/components/account/DeleteAccount";
 import { Avatar } from "@/components/common/Avatar";
 import { CreatePlaylistForm } from "@/components/playlist/CreatePlaylistForm";
 import { ButtonLink, EmptyState, Grid, Section } from "@/components/ui/primitives";
@@ -92,6 +93,7 @@ export default async function Account() {
       <form action="/auth/signout" method="post" className="mt-14">
         <button type="submit" className={button("secondary")}>Sign out</button>
       </form>
+      <DeleteAccount />
     </div>
   );
 }

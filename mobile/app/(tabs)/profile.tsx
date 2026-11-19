@@ -1,13 +1,13 @@
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Image, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Image, ScrollView, Text, TextInput, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Loading } from "@/components/States";
 import { s } from "@/components/styles";
 import { VendorRow } from "@/components/VendorRow";
 import { signInWithGoogle, useSession } from "@/lib/auth";
 import type { Vendor } from "@/lib/domain";
-import { createPlaylist, myProfile } from "@/lib/me";
+import { createPlaylist, deleteAccount, myProfile } from "@/lib/me";
 import { db } from "@/lib/supabase";
 import { C } from "@/lib/theme";
 
@@ -33,6 +33,13 @@ export default function Profile() {
   );
 
   if (loading) return <Loading />;
+
+  function confirmDelete() {
+    Alert.alert("Delete your account?", "Your reviews, saved spots and playlists go too. This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteAccount().catch(() => setError("Couldn't delete. Email privacy@eatatezz.in.")) },
+    ]);
+  }
 
   async function signIn() {
     setBusy(true);
@@ -107,6 +114,7 @@ export default function Profile() {
 
       <Link href="/suggest" style={[s.card, { color: C.beige, textAlign: "center", marginTop: 8 }]}>+ Suggest a spot that&apos;s missing</Link>
       <Button label="Sign out" variant="secondary" onPress={() => db.auth.signOut()} style={{ marginTop: 8 }} />
+      <Button label="Delete my account" variant="secondary" onPress={confirmDelete} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }

@@ -76,3 +76,10 @@ export async function myProfile(userId: string) {
     })),
   };
 }
+
+/** Permanently deletes the signed-in account and everything it created, then signs out. */
+export async function deleteAccount() {
+  const { error } = await db.rpc("delete_my_account");
+  if (error) throw error;
+  await db.auth.signOut();
+}
