@@ -2,7 +2,9 @@
 
 Expo (React Native) + Expo Router, on the same Supabase database as the website.
 
-**Screens:** Explore (search + veg/non-veg/vegan), Food Playlists, Decide for me, Profile (Google sign-in, Want to try list, your playlists), plus vendor pages (save, rate and review, add to playlist), playlist pages and Suggest a spot.
+**Code:** `app/` screens · `components/` small UI pieces · `lib/api.ts` public data · `lib/me.ts` signed-in user's data · `lib/domain.ts` types and helpers · `lib/database.types.ts` generated schema (same as web).
+
+**Screens:** Explore (search + veg/non-veg/vegan), Food Playlists, Decide for me, Profile (Google sign-in, Want to try list, your playlists), plus vendor pages (save, rate and review, add to playlist, share, report wrong info), playlist pages and Suggest a spot.
 
 ## Run it
 

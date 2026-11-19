@@ -1,66 +1,53 @@
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { Button, Chip, DietMark, s } from "@/components/ui";
+import { Linking, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { Button } from "@/components/Button";
+import { Chip } from "@/components/Chip";
+import { DietMark } from "@/components/DietMark";
+import { Loading, Message } from "@/components/States";
+import { s } from "@/components/styles";
+import { getVendor, listReviews, playlistsForVendor } from "@/lib/api";
 import { useSession } from "@/lib/auth";
-import {
-  addToPlaylist,
-  createPlaylist,
-  deleteReview,
-  getMyState,
-  getReviews,
-  saveReview,
-  setSaved,
-  type MyPlaylist,
-  type Review,
-} from "@/lib/community";
-import { supabase } from "@/lib/supabase";
+import { directionsUrl, REPORT_REASONS, WEB_URL, type Vendor } from "@/lib/domain";
+import { addToPlaylist, createPlaylist, deleteReview, myVendorState, reportVendor, saveReview, setSaved } from "@/lib/me";
 import { C } from "@/lib/theme";
-import { cleanName, directionsUrl, type VendorCard } from "@/lib/types";
 
-export default function Vendor() {
+type Review = Awaited<ReturnType<typeof listReviews>>[number];
+type MyList = { id: string; title: string; count: number; has: boolean };
+
+export default function VendorScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
-  const { session } = useSession();
-  const userId = session?.user.id;
+  const userId = useSession().session?.user.id;
 
-  const [v, setV] = useState<VendorCard | null | undefined>(undefined);
-  const [lists, setLists] = useState<{ slug: string; title: string }[]>([]);
+  const [v, setV] = useState<Vendor | null | undefined>(undefined);
+  const [featured, setFeatured] = useState<{ slug: string; title: string }[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [saved, setSavedState] = useState(false);
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState("");
   const [hasReview, setHasReview] = useState(false);
-  const [myLists, setMyLists] = useState<MyPlaylist[]>([]);
+  const [myLists, setMyLists] = useState<MyList[]>([]);
   const [newList, setNewList] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const refresh = useCallback(async (vendor: VendorCard) => {
-    const [r, pl] = await Promise.all([
-      getReviews(vendor.id),
-      supabase.from("playlist_items").select("playlists(slug, title, section)").eq("vendor_id", vendor.id),
-    ]);
+  const refresh = useCallback(async (vendorId: string) => {
+    const [r, f] = await Promise.all([listReviews(vendorId), playlistsForVendor(vendorId)]);
     setReviews(r);
-    setLists(
-      ((pl.data ?? []) as unknown as { playlists: { slug: string; title: string } | null }[])
-        .map((x) => x.playlists)
-        .filter((p): p is { slug: string; title: string } => Boolean(p)),
-    );
+    setFeatured(f);
   }, []);
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("vendor_cards").select("*").eq("slug", slug).maybeSingle();
-      const vendor = (data as VendorCard | null) ?? null;
+    getVendor(slug).then((vendor) => {
       setV(vendor);
-      if (vendor) refresh(vendor);
-    })();
+      if (vendor) refresh(vendor.id);
+    });
   }, [slug, refresh]);
 
   useEffect(() => {
     if (!userId || !v) return;
-    getMyState(userId, v.id).then((st) => {
+    myVendorState(userId, v.id).then((st) => {
       setSavedState(st.saved);
       setHasReview(Boolean(st.review));
       setRating(st.review?.rating ?? 0);
@@ -69,54 +56,50 @@ export default function Vendor() {
     });
   }, [userId, v]);
 
-  if (v === undefined) return <ActivityIndicator color={C.beige} style={{ marginTop: 40 }} />;
-  if (v === null) return <Text style={[s.muted, { padding: 20 }]}>This spot doesn&apos;t exist anymore.</Text>;
-
-  const needLogin = () => router.push("/profile");
+  if (v === undefined) return <Loading />;
+  if (v === null) return <Message>This spot doesn&apos;t exist anymore.</Message>;
+  const vendor = v;
+  const signIn = () => router.push("/profile");
 
   async function toggleSave() {
-    if (!userId || !v) return needLogin();
+    if (!userId) return signIn();
     const next = !saved;
     setSavedState(next);
-    if (!(await setSaved(userId, v.id, next))) setSavedState(!next);
+    if (!(await setSaved(userId, vendor.id, next))) setSavedState(!next);
   }
 
   async function submitReview() {
-    if (!userId || !v || !rating) return;
+    if (!userId || !rating) return;
     setBusy(true);
-    const ok = await saveReview(userId, v.id, rating, body);
+    const ok = await saveReview(userId, vendor.id, rating, body);
     setBusy(false);
     setMsg(ok ? "Review saved. Shukriya!" : "Couldn't save. Try again.");
     if (ok) {
       setHasReview(true);
-      refresh(v);
+      refresh(vendor.id);
     }
   }
 
   async function removeReview() {
-    if (!userId || !v) return;
-    if (await deleteReview(userId, v.id)) {
-      setHasReview(false);
-      setRating(0);
-      setBody("");
-      refresh(v);
-    }
+    if (!userId || !(await deleteReview(userId, vendor.id))) return;
+    setHasReview(false);
+    setRating(0);
+    setBody("");
+    refresh(vendor.id);
   }
 
-  async function add(p: MyPlaylist) {
-    if (!v) return;
-    if (await addToPlaylist(p.id, v.id, p.count + 1)) {
-      setMyLists((ls) => ls.map((x) => (x.id === p.id ? { ...x, has: true, count: x.count + 1 } : x)));
-      setMsg(`Added to ${p.title}`);
-    }
+  async function add(list: MyList) {
+    if (list.has || !(await addToPlaylist(list.id, vendor.id, list.count + 1))) return;
+    setMyLists((ls) => ls.map((x) => (x.id === list.id ? { ...x, has: true, count: x.count + 1 } : x)));
+    setMsg(`Added to ${list.title}`);
   }
 
   async function createAndAdd() {
-    if (!v || newList.trim().length < 3) return setMsg("Give the playlist a name (3+ letters).");
+    if (newList.trim().length < 3) return setMsg("Give the playlist a name (3+ letters).");
     try {
       const created = await createPlaylist(newList);
-      await addToPlaylist(created.id, v.id, 1);
-      setMyLists((ls) => [{ id: created.id, slug: created.slug, title: created.title, count: 1, has: true }, ...ls]);
+      await addToPlaylist(created.id, vendor.id, 1);
+      setMyLists((ls) => [{ id: created.id, title: created.title, count: 1, has: true }, ...ls]);
       setNewList("");
       setMsg(`Created ${created.title} and added this spot.`);
     } catch {
@@ -124,42 +107,39 @@ export default function Vendor() {
     }
   }
 
+  async function report(reason: string) {
+    if (!userId) return signIn();
+    setMsg((await reportVendor(vendor.id, reason)) ? "Thanks, we'll check it." : "Couldn't send. Try again.");
+  }
+
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: v.area_name ?? "" }} />
+    <ScrollView style={s.screen} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
+      <Stack.Screen options={{ title: v.areaName ?? "" }} />
       <Text style={s.eyebrow}>{v.category} · {v.kind}</Text>
-      <Text style={[s.h1, { fontSize: 32 }]}>{cleanName(v.name)}</Text>
-      {v.speciality ? (
-        <Text style={s.muted}>
-          Known for: <Text style={{ color: C.cream }}>{v.speciality}</Text>
-        </Text>
-      ) : null}
+      <Text style={[s.h1, { fontSize: 32 }]}>{v.name}</Text>
+      {v.speciality ? <Text style={s.muted}>Known for: <Text style={{ color: C.cream }}>{v.speciality}</Text></Text> : null}
       <View style={s.metaRow}>
         <DietMark diet={v.diet} />
-        {v.review_count > 0 ? <Text style={[s.small, { color: C.beige }]}>★ {Number(v.avg_rating).toFixed(1)} ({v.review_count})</Text> : null}
-        {v.area_name ? <Text style={s.small}>{v.area_name}</Text> : null}
+        {v.reviewCount > 0 ? <Text style={[s.small, { color: C.beige }]}>★ {v.rating.toFixed(1)} ({v.reviewCount})</Text> : null}
+        {v.areaName ? <Text style={s.small}>{v.areaName}</Text> : null}
       </View>
 
       <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
         <Button label={saved ? "♥ Saved" : "♡ Want to try"} onPress={toggleSave} style={{ flex: 1 }} />
-        <Button label="Directions" onPress={() => Linking.openURL(directionsUrl(v))} style={{ flex: 1 }} />
+        <Button label="Directions" onPress={() => Linking.openURL(directionsUrl(vendor))} style={{ flex: 1 }} />
       </View>
+      <Button label="Share" variant="secondary" onPress={() => Share.share({ message: `${vendor.name} on EatAtEzz: ${WEB_URL}/vendor/${vendor.slug}` })} />
 
-      {lists.length ? (
-        <View style={{ marginTop: 10, gap: 8 }}>
+      {featured.length ? (
+        <View style={{ gap: 8 }}>
           <Text style={s.small}>Featured in</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {lists.map((p) => (
-              <Link key={p.slug} href={`/playlist/${p.slug}`} style={[s.chip, { color: C.cream }]}>
-                {p.title}
-              </Link>
-            ))}
+          <View style={s.row}>
+            {featured.map((p) => <Link key={p.slug} href={`/playlist/${p.slug}`} style={[s.card, { color: C.cream, paddingVertical: 8 }]}>{p.title}</Link>)}
           </View>
         </View>
       ) : null}
 
-      {/* Your review */}
-      <View style={[s.card, { marginTop: 10, gap: 10 }]}>
+      <View style={[s.card, { gap: 10 }]}>
         <Text style={s.h2}>{hasReview ? "Your review" : "Rate this spot"}</Text>
         {userId ? (
           <>
@@ -170,57 +150,34 @@ export default function Vendor() {
                 </Pressable>
               ))}
             </View>
-            <TextInput
-              value={body}
-              onChangeText={setBody}
-              placeholder="What should people order?"
-              placeholderTextColor={C.muted}
-              multiline
-              maxLength={1000}
-              style={[s.input, { minHeight: 80, textAlignVertical: "top" }]}
-            />
+            <TextInput value={body} onChangeText={setBody} placeholder="What should people order?" placeholderTextColor={C.muted} multiline maxLength={1000} style={[s.input, { minHeight: 80, textAlignVertical: "top" }]} />
             <Button label={busy ? "Saving…" : hasReview ? "Update review" : "Post review"} onPress={submitReview} disabled={busy || !rating} />
             {hasReview ? (
-              <Pressable onPress={removeReview}>
-                <Text style={[s.small, { textAlign: "center" }]}>Delete my review</Text>
-              </Pressable>
+              <Pressable onPress={removeReview}><Text style={[s.small, { textAlign: "center" }]}>Delete my review</Text></Pressable>
             ) : null}
           </>
         ) : (
-          <Button label="Sign in to rate" onPress={needLogin} />
+          <Button label="Sign in to rate" onPress={signIn} />
         )}
       </View>
 
-      {/* Add to playlist */}
       {userId ? (
         <View style={[s.card, { gap: 10 }]}>
           <Text style={s.h2}>Add to your playlist</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {myLists.map((p) => (
-              <Chip key={p.id} label={p.has ? `✓ ${p.title}` : p.title} active={p.has} onPress={() => !p.has && add(p)} />
-            ))}
+          <View style={s.row}>
+            {myLists.map((p) => <Chip key={p.id} label={p.has ? `✓ ${p.title}` : p.title} active={p.has} onPress={() => add(p)} />)}
           </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <TextInput
-              value={newList}
-              onChangeText={setNewList}
-              placeholder="New playlist name"
-              placeholderTextColor={C.muted}
-              maxLength={60}
-              style={[s.input, { flex: 1 }]}
-            />
-            <Button label="Create" onPress={createAndAdd} style={{ paddingHorizontal: 18 }} />
+            <TextInput value={newList} onChangeText={setNewList} placeholder="New playlist name" placeholderTextColor={C.muted} maxLength={60} style={[s.input, { flex: 1 }]} />
+            <Button label="Create" onPress={createAndAdd} />
           </View>
         </View>
       ) : null}
 
       {msg ? <Text style={[s.small, { color: C.veg, textAlign: "center" }]}>{msg}</Text> : null}
 
-      {/* Reviews */}
       <Text style={[s.h2, { marginTop: 10 }]}>Reviews</Text>
-      {reviews.length === 0 ? (
-        <Text style={s.muted}>No reviews yet. Tell Lucknow what to order here.</Text>
-      ) : (
+      {reviews.length ? (
         reviews.map((r) => (
           <View key={r.id} style={s.card}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
@@ -230,7 +187,14 @@ export default function Vendor() {
             {r.body ? <Text style={s.muted}>{r.body}</Text> : null}
           </View>
         ))
+      ) : (
+        <Text style={s.muted}>No reviews yet. Tell Lucknow what to order here.</Text>
       )}
+
+      <Text style={[s.small, { marginTop: 16 }]}>Something wrong with this listing?</Text>
+      <View style={s.row}>
+        {Object.entries(REPORT_REASONS).map(([key, label]) => <Chip key={key} label={label} onPress={() => report(key)} />)}
+      </View>
     </ScrollView>
   );
 }

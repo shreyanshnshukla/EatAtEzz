@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/auth/server";
+import { safeNext } from "@/lib/domain";
+import { createServerDb } from "@/lib/supabase/server";
 
-/** Google sends the user back here with a one-time code; we swap it for a session. */
+/** Google returns here with a one-time code; swap it for a session cookie. */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const nextParam = searchParams.get("next") ?? "/account";
-  // Only allow redirects to paths on this site.
-  const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/account";
-
   if (code) {
-    const supabase = await createSupabaseServer();
+    const supabase = await createServerDb();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) return NextResponse.redirect(`${origin}${safeNext(searchParams.get("next"))}`);
   }
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

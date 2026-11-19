@@ -2,14 +2,14 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "./supabase";
+import { db } from "./supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
 /** Opens Google sign-in in the system browser and brings the user back to the app (eatatezz://auth/callback). */
 export async function signInWithGoogle() {
   const redirectTo = Linking.createURL("auth/callback");
-  const { data, error } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await db.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo, skipBrowserRedirect: true },
   });
@@ -21,7 +21,7 @@ export async function signInWithGoogle() {
   const { queryParams } = Linking.parse(result.url);
   const code = typeof queryParams?.code === "string" ? queryParams.code : null;
   if (!code) throw new Error("Sign-in was cancelled");
-  const { data: session, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: session, error: exchangeError } = await db.auth.exchangeCodeForSession(code);
   if (exchangeError) throw exchangeError;
   return session.session;
 }
@@ -31,11 +31,11 @@ export function useSession() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    db.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data: sub } = db.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
 

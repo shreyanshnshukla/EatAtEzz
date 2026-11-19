@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { DecideClient } from "@/components/DecideClient";
-import { getAreas, getCategories } from "@/lib/data";
-
+import { DecideClient } from "@/components/decide/DecideClient";
+import { PageHeader } from "@/components/ui/primitives";
+import { listAreas } from "@/lib/queries/areas";
+import { getCategories } from "@/lib/queries/vendors";
 
 export const metadata: Metadata = {
   title: "Decide for me: what to eat in Lucknow",
@@ -10,17 +11,13 @@ export const metadata: Metadata = {
 };
 
 export default async function Decide() {
-  const [areas, categories] = await Promise.all([getAreas(), getCategories()]);
+  const [areas, categories] = await Promise.all([listAreas(), getCategories()]);
   return (
     <div className="mx-auto max-w-6xl px-4 pt-10">
-      <p className="text-sm uppercase tracking-[0.2em] text-caramel">Decide for me</p>
-      <h1 className="mt-2 font-display text-4xl text-cream md:text-5xl">
-        Kya khaun? <span className="italic text-beige">Let us pick.</span>
-      </h1>
-      <p className="mt-3 max-w-xl text-muted">Three quick choices, one food spot. Don&apos;t like it? Pick again.</p>
-      <div className="mt-8">
-        <DecideClient areas={areas} categories={categories} />
-      </div>
+      <PageHeader eyebrow="Decide for me" title={<>Kya khaun? <span className="italic text-beige">Let us pick.</span></>}>
+        Three quick choices, one food spot. Don&apos;t like it? Pick again.
+      </PageHeader>
+      <div className="mt-8"><DecideClient areas={areas} categories={categories} /></div>
     </div>
   );
 }

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Text, TextInput, View } from "react-native";
-import { Chip, s, VendorRow } from "@/components/ui";
-import { supabase, CITY } from "@/lib/supabase";
+import { FlatList, Text, TextInput, View } from "react-native";
+import { Chip } from "@/components/Chip";
+import { Loading, Message } from "@/components/States";
+import { s } from "@/components/styles";
+import { VendorRow } from "@/components/VendorRow";
+import { searchVendors } from "@/lib/api";
+import { searchTerm, type Vendor } from "@/lib/domain";
 import { C } from "@/lib/theme";
-import type { VendorCard } from "@/lib/types";
 
-const PAGE = 30;
 const DIETS = [
   { key: "", label: "All" },
   { key: "veg", label: "Veg" },
@@ -16,7 +18,7 @@ const DIETS = [
 export default function Explore() {
   const [q, setQ] = useState("");
   const [diet, setDiet] = useState("");
-  const [items, setItems] = useState<VendorCard[]>([]);
+  const [items, setItems] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState(false);
@@ -29,24 +31,18 @@ export default function Explore() {
       busy.current = true;
       setLoading(true);
       setError(false);
-      const from = reset ? 0 : page.current * PAGE;
-      let query = supabase.from("vendor_cards").select("*").eq("city_slug", CITY);
-      if (diet === "veg") query = query.in("diet", ["veg", "vegan"]);
-      if (diet === "vegan") query = query.eq("diet", "vegan");
-      if (diet === "non_veg") query = query.in("diet", ["non_veg", "both"]);
-      const term = q.replace(/[\\%_,().*:"]/g, " ").trim().slice(0, 60);
-      if (term) query = query.or(`name.ilike.%${term}%,speciality.ilike.%${term}%,category.ilike.%${term}%`);
-      const { data, error: err } = await query.order("name").range(from, from + PAGE - 1);
-      busy.current = false;
-      setLoading(false);
-      if (err) {
+      try {
+        const next = reset ? 0 : page.current;
+        const res = await searchVendors({ q: searchTerm(q), diet, page: next });
+        page.current = next + 1;
+        setItems((prev) => (reset ? res.vendors : [...prev, ...res.vendors]));
+        setDone(res.done);
+      } catch {
         setError(true);
-        return;
+      } finally {
+        busy.current = false;
+        setLoading(false);
       }
-      const rows = (data ?? []) as VendorCard[];
-      page.current = (reset ? 0 : page.current) + 1;
-      setItems((prev) => (reset ? rows : [...prev, ...rows]));
-      setDone(rows.length < PAGE);
     },
     [q, diet],
   );
@@ -61,12 +57,11 @@ export default function Explore() {
       <FlatList
         data={items}
         keyExtractor={(v) => v.id}
-        contentContainerStyle={{ padding: 16, gap: 12 }}
+        contentContainerStyle={s.list}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={{ gap: 12, marginBottom: 4 }}>
-            <Text style={s.h1}>
-              Kya khaun? <Text style={{ color: C.beige, fontStyle: "italic" }}>Sorted.</Text>
-            </Text>
+            <Text style={s.h1}>Kya khaun? <Text style={s.accent}>Sorted.</Text></Text>
             <TextInput
               value={q}
               onChangeText={setQ}
@@ -76,24 +71,16 @@ export default function Explore() {
               accessibilityLabel="Search food spots"
               returnKeyType="search"
             />
-            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-              {DIETS.map((d) => (
-                <Chip key={d.key} label={d.label} active={diet === d.key} onPress={() => setDiet(d.key)} />
-              ))}
+            <View style={s.row}>
+              {DIETS.map((d) => <Chip key={d.key} label={d.label} active={diet === d.key} onPress={() => setDiet(d.key)} />)}
             </View>
           </View>
         }
         renderItem={({ item }) => <VendorRow v={item} />}
         onEndReachedThreshold={0.4}
-        onEndReached={() => !done && !loading && load(false)}
-        ListEmptyComponent={
-          !loading ? (
-            <Text style={[s.muted, { textAlign: "center", marginTop: 40 }]}>
-              {error ? "Couldn't load. Check your internet and pull to retry." : "Nothing here yet. Try another dish."}
-            </Text>
-          ) : null
-        }
-        ListFooterComponent={loading ? <ActivityIndicator color={C.beige} style={{ marginVertical: 20 }} /> : null}
+        onEndReached={() => !done && load(false)}
+        ListEmptyComponent={loading ? null : <Message>{error ? "Couldn't load. Pull down to retry." : "Nothing here yet. Try another dish."}</Message>}
+        ListFooterComponent={loading ? <Loading /> : null}
         refreshing={false}
         onRefresh={() => load(true)}
       />

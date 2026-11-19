@@ -1,30 +1,20 @@
 import type { MetadataRoute } from "next";
-import { supabase } from "@/lib/supabase";
-import { getAreas, getPlaylists } from "@/lib/data";
-import { SITE_URL } from "@/lib/format";
+import { absoluteUrl } from "@/lib/domain";
+import { listAreas } from "@/lib/queries/areas";
+import { listPlaylists } from "@/lib/queries/playlists";
+import { db } from "@/lib/supabase/public";
 
 export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [areas, playlists, { data: vendors }] = await Promise.all([
-    getAreas(),
-    getPlaylists(),
-    supabase.from("vendors").select("slug, updated_at"),
-  ]);
-  const now = new Date();
+  const [areas, playlists, { data: vendors }] = await Promise.all([listAreas(), listPlaylists(), db.from("vendors").select("slug, updated_at")]);
+  const page = (path: string, priority: number, lastModified = new Date()) => ({ url: absoluteUrl(path), lastModified, priority });
   return [
-    { url: `${SITE_URL}/`, lastModified: now, priority: 1 },
-    { url: `${SITE_URL}/explore`, lastModified: now, priority: 0.9 },
-    { url: `${SITE_URL}/areas`, lastModified: now, priority: 0.8 },
-    { url: `${SITE_URL}/dishes`, lastModified: now, priority: 0.8 },
-    { url: `${SITE_URL}/decide`, lastModified: now, priority: 0.6 },
-    { url: `${SITE_URL}/playlists`, lastModified: now, priority: 0.8 },
-    ...playlists.map((p) => ({ url: `${SITE_URL}/playlist/${p.slug}`, lastModified: now, priority: 0.7 })),
-    ...areas.map((a) => ({ url: `${SITE_URL}/area/${a.slug}`, lastModified: now, priority: 0.7 })),
-    ...(vendors ?? []).map((v) => ({
-      url: `${SITE_URL}/vendor/${v.slug}`,
-      lastModified: new Date(v.updated_at as string),
-      priority: 0.5,
-    })),
+    page("/", 1),
+    ...["/explore", "/playlists", "/areas", "/dishes"].map((p) => page(p, 0.8)),
+    page("/decide", 0.6),
+    ...areas.map((a) => page(`/area/${a.slug}`, 0.7)),
+    ...playlists.map((p) => page(`/playlist/${p.slug}`, 0.7)),
+    ...(vendors ?? []).map((v) => page(`/vendor/${v.slug}`, 0.5, new Date(v.updated_at))),
   ];
 }

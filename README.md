@@ -16,6 +16,9 @@ Hyperlocal street-food discovery for Lucknow. "Ezz" means *easy*: deciding what 
 | Want to try | Save spots to a personal list |
 | Your playlists | Make, fill and share your own Food Playlists |
 | Suggest a spot | Add a missing thela; it goes to a review queue first |
+| Report wrong info | Flag a closed, moved or mislabelled spot |
+| Share | Share any shop or playlist (native share sheet / copy link) |
+| Admin | Approve suggestions into live listings, resolve reports |
 | Sign in | Google login (web and app) |
 
 Lucknow-only at launch; the database is multi-city.
@@ -44,7 +47,7 @@ eatatezz/
 | `areas` | 60 | Lucknow neighbourhoods |
 | `dishes` | 37 | Famous foods with season and where to eat them |
 | `playlists` / `playlist_items` | 24 curated | Plus user-made "community" playlists |
-| `reviews`, `saved_vendors`, `vendor_suggestions`, `profiles` | – | Per-user data, locked by RLS |
+| `reviews`, `saved_vendors`, `vendor_suggestions`, `vendor_reports`, `profiles` | – | Per-user data, locked by RLS; only admins moderate |
 
 Specialities and diet tags were inferred from names and categories; verify them on the ground and set `is_verified`. Locations are empty until verified (no copied Google coordinates).
 
@@ -60,8 +63,14 @@ cd mobile && npm install && npx expo install --fix && cp .env.example .env && np
 
 **One-time setup:** turn on Google sign-in (steps in `web/README.md`), and add `eatatezz://auth/callback` and `exp://**` to Supabase redirect URLs for the app.
 
+## Quality
+
+- Typed end to end: generated Supabase types, zod-validated Server Actions
+- Row-level security on every table, tested with simulated users; users can't promote themselves to admin
+- CI on every push: typecheck, lint, build (web) and typecheck (app)
+- Security headers, per-request caching, loading/error states, SEO (sitemap, JSON-LD, canonical URLs)
+
 ## Next up
 
-- Admin screen to approve suggested spots
 - Verified locations → per-shop map pins and "near me"
 - Vendor claim flow, app icon, food photos

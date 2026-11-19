@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Public values (the publishable key is safe in the browser; RLS protects data)
+      NEXT_PUBLIC_SUPABASE_URL: https://giugizffyakajeyvctla.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_3EbuGww4Iw0EG7SN1-xVSQ_ULyP42mv
+      NEXT_PUBLIC_SITE_URL: https://eatatezz.netlify.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx tsc --noEmit

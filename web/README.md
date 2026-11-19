@@ -1,78 +1,72 @@
-# EatAtEzz web: landing page and website
+# EatAtEzz web
 
-**Kya khaun? Sorted.** The EatAtEzz website for Lucknow: a landing page, plus explore, area, vendor, famous-dishes and "Decide for me" pages.
+Next.js 15 (App Router, Server Actions) + TypeScript + Tailwind v4 + Supabase.
 
-## Stack
-
-- Next.js 15 (App Router) + TypeScript + Tailwind CSS v4
-- Supabase (Postgres + PostGIS) for data, project `eatatezz` (Mumbai region)
-- MapLibre GL for the area map (MapTiler dark style if a key is set, OpenFreeMap otherwise)
-- Netlify for hosting
-
-## Run it locally
+## Run
 
 ```bash
-cd web
 npm install
-cp .env.example .env.local   # then paste your Supabase anon/publishable key
-npm run dev                  # http://localhost:3000
+cp .env.example .env.local      # paste the Supabase publishable key
+npm run dev                     # http://localhost:3000
 ```
 
-Get the key from Supabase → Project Settings → API keys. The anon/publishable key is safe in the browser because row-level security (RLS) is on for every table. **Never** put the `service_role` key in this app.
-
-## Pages
-
-| Route | What it does |
+| Script | Does |
 | --- | --- |
-| `/` | Landing: hero, cravings, area map, famous dishes, how it works, vendor sign-up |
-| `/explore` | Search and filter all food spots by area, food and diet |
-| `/areas` | Map and list of every Lucknow area |
-| `/area/[slug]` | SEO page per area ("Street food in Aminabad"), grouped by food |
-| `/vendor/[slug]` | Shop page: speciality, diet, directions, similar spots, JSON-LD |
-| `/dishes` | Lucknow's famous veg, non-veg and vegan dishes |
-| `/decide` | "Decide for me": picks one spot from your area, diet and craving |
-| `/playlists`, `/playlist/[slug]` | 24 Food Playlists (non-veg, veg, vegan, underrated, area walks) |
-| `/login`, `/account` | Google sign-in; account shows Want to try list, your playlists, your suggestions |
-| `/suggest` | Suggest a missing stall (goes to a review queue) |
-| `/sitemap.xml`, `/robots.txt` | Generated for SEO |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint (`next/core-web-vitals` + TypeScript) |
+| `npm run format` | Prettier + Tailwind class sorting |
+| `npm run db:types` | Regenerate `src/lib/database.types.ts` after a schema change |
+
+CI (`.github/workflows/ci.yml`) runs typecheck, lint and build on every push and PR.
+
+## Code map
+
+```
+src/
+├── app/                     Routes only: fetch data, compose components
+│   ├── vendor/[slug]        Shop page: save, review, add to playlist, report, share
+│   ├── playlist/[slug]      Playlist page (owner can remove spots / delete)
+│   ├── explore, areas, area/[slug], dishes, decide, playlists
+│   ├── account, suggest, login, auth/*   Signed-in flows
+│   ├── admin                Moderation queue (admins only)
+│   └── loading.tsx, error.tsx, not-found.tsx, sitemap.ts, robots.ts
+├── components/
+│   ├── ui/                  styles.ts (button/card/field recipes) + primitives.tsx
+│   └── layout/ vendor/ playlist/ explore/ decide/ community/ admin/ common/
+├── lib/
+│   ├── env.ts               Validated environment variables
+│   ├── database.types.ts    Generated Supabase types
+│   ├── domain.ts            App types (Vendor, Playlist…), mappers, labels, URL helpers
+│   ├── supabase/            public (anon), server (session + getUser/getProfile), browser
+│   ├── queries/             Read-only data access, cached per request
+│   └── actions/             Server Actions, validated with zod, one file per feature
+└── middleware.ts            Refreshes the auth session cookie
+```
+
+Rules of thumb: pages never call Supabase directly (they go through `queries/`); every write is a Server Action in `actions/` that validates its input; every security rule is also enforced by RLS in the database, so the UI is never the only guard.
 
 ## Database
 
-Schema: `supabase/migrations/0001_schema.sql` (cities, areas, vendors, dishes, profiles, reviews, saved_vendors, the `vendor_cards` view, and the `decide_for_me` / `nearby_vendors` functions). It is already applied to the `eatatezz` Supabase project.
+Migrations live in `supabase/migrations/` (0001 schema → 0004 moderation) and seed data in `supabase/seed/`. All of it is applied to the `eatatezz` Supabase project.
 
-Vendor locations: `vendors.location` is empty for now. Fill it from on-the-ground checks (or a licensed source) and set `is_verified = true`. Google Place IDs are stored so pages can link to Google Maps directions.
+**Make yourself admin** (once, after your first sign-in), in Supabase → SQL editor:
 
-## Community features
+```sql
+update public.profiles set is_admin = true
+where id = (select id from auth.users where email = 'shreyanshnandanshukla18@gmail.com');
+```
 
-- **Reviews:** 1–5 stars plus an optional note, one per person per spot (edit or delete anytime). Averages show on cards and shop pages.
-- **Want to try:** heart a spot to save it; it appears on `/account`.
-- **Your playlists:** create from `/account` or straight from a shop page; owners can remove spots or delete the playlist. Community playlists show on `/playlists` once they have 3+ spots.
-- **Suggest a spot:** `/suggest` (max 10 a day per person). Review them in Supabase → `vendor_suggestions`, set `status` to `approved` or `rejected`, and add approved ones to `vendors`.
+Then `/admin` shows suggested spots (Approve creates the vendor) and "wrong info" reports.
 
-All of this is protected by row-level security: people can only change their own reviews, saves, playlists and suggestions.
+## Google sign-in (one-time)
 
-## Turn on Google sign-in (one-time, about 10 minutes)
-
-1. **Google Cloud Console** → APIs & Services → OAuth consent screen → set it up (External, app name EatAtEzz, your email).
-2. **Credentials → Create credentials → OAuth client ID → Web application.**
-   - Authorized JavaScript origins: `http://localhost:3000` and your live site URL.
+1. Google Cloud Console → OAuth consent screen (External, app name EatAtEzz).
+2. Credentials → OAuth client ID → Web application.
+   - Authorized JavaScript origins: `http://localhost:3000` and your live URL.
    - Authorized redirect URI: `https://giugizffyakajeyvctla.supabase.co/auth/v1/callback`
-   - Copy the **Client ID** and **Client secret**.
-3. **Supabase dashboard → Authentication → Sign In / Providers → Google** → enable, paste the Client ID and secret, save.
-4. **Supabase → Authentication → URL Configuration:**
-   - Site URL: your live site URL (or `http://localhost:3000` while testing).
-   - Redirect URLs: add `http://localhost:3000/auth/callback` and `https://YOUR-SITE/auth/callback`.
+3. Supabase → Authentication → Providers → Google: enable, paste the client ID and secret.
+4. Supabase → Authentication → URL Configuration: set the Site URL; add `http://localhost:3000/auth/callback`, `https://YOUR-SITE/auth/callback`, `eatatezz://auth/callback` and `exp://**` to Redirect URLs.
 
-New users get a row in `profiles` automatically (name and photo from Google).
+## Deploy (Netlify)
 
-## Deploy on Netlify
-
-1. New site → import this GitHub repo → **Base directory: `web`**.
-2. Add the environment variables from `.env.example`.
-3. Deploy. `netlify.toml` uses the official Next.js plugin.
-
-## Next up
-
-- Admin screen to approve suggested spots (for now: Supabase → Table editor → `vendor_suggestions`)
-- Verified locations → per-vendor pins and "near me"
-- Vendor claim flow
+Import the repo, set **Base directory** to `web`, add the variables from `.env.example`, deploy.

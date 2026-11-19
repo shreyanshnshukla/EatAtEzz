@@ -1,235 +1,143 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DietBadge } from "@/components/DietBadge";
-import { VendorCard } from "@/components/VendorCard";
-import { AddToPlaylist } from "@/components/AddToPlaylist";
-import { ReviewForm } from "@/components/ReviewForm";
-import { SaveButton } from "@/components/SaveButton";
-import { getPlaylistsForVendor, getReviews, getSimilar, getVendor } from "@/lib/data";
-import { createSupabaseServer } from "@/lib/auth/server";
-import { cleanName, directionsUrl, mapsUrl, SITE_URL } from "@/lib/format";
-
+import { ShareButton } from "@/components/common/ShareButton";
+import { ButtonLink, Grid, JsonLd, Section, Stars } from "@/components/ui/primitives";
+import { button, card } from "@/components/ui/styles";
+import { AddToPlaylist } from "@/components/vendor/AddToPlaylist";
+import { DietBadge } from "@/components/vendor/DietBadge";
+import { ReportForm } from "@/components/vendor/ReportForm";
+import { ReviewForm } from "@/components/vendor/ReviewForm";
+import { ReviewList } from "@/components/vendor/ReviewList";
+import { SaveButton } from "@/components/vendor/SaveButton";
+import { VendorCard } from "@/components/vendor/VendorCard";
+import { absoluteUrl, directionsUrl, mapsUrl, type Vendor } from "@/lib/domain";
+import { myVendorState } from "@/lib/queries/me";
+import { playlistsForVendor } from "@/lib/queries/playlists";
+import { listReviews } from "@/lib/queries/reviews";
+import { getSimilar, getVendor } from "@/lib/queries/vendors";
+import { getUser } from "@/lib/supabase/server";
 
 type Params = Promise<{ slug: string }>;
 
+const where = (v: Vendor) => (v.areaName ? `${v.areaName}, Lucknow` : "Lucknow");
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { slug } = await params;
-  const v = await getVendor(slug);
+  const v = await getVendor((await params).slug);
   if (!v) return {};
-  const name = cleanName(v.name);
-  const where = v.area_name ? `${v.area_name}, Lucknow` : "Lucknow";
   return {
-    title: `${name}, ${where}`,
-    description: `${name} in ${where}: ${v.speciality ?? v.category}. Directions, diet and what to order.`,
-    alternates: { canonical: `/vendor/${slug}` },
+    title: `${v.name}, ${where(v)}`,
+    description: `${v.name} in ${where(v)}: ${v.speciality ?? v.category}. Directions, reviews and what to order.`,
+    alternates: { canonical: `/vendor/${v.slug}` },
+  };
+}
+
+function jsonLd(v: Vendor) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: v.name,
+    url: absoluteUrl(`/vendor/${v.slug}`),
+    servesCuisine: v.category,
+    address: { "@type": "PostalAddress", addressLocality: where(v), addressRegion: "Uttar Pradesh", addressCountry: "IN" },
+    ...(v.reviewCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: v.rating, reviewCount: v.reviewCount } } : {}),
   };
 }
 
 export default async function VendorPage({ params }: { params: Params }) {
-  const { slug } = await params;
-  const v = await getVendor(slug);
+  const v = await getVendor((await params).slug);
   if (!v) notFound();
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const [similar, inPlaylists, reviews, mine] = await Promise.all([
-    getSimilar(v),
-    getPlaylistsForVendor(v.id),
-    getReviews(v.id),
-    user
-      ? Promise.all([
-          supabase.from("saved_vendors").select("vendor_id").eq("user_id", user.id).eq("vendor_id", v.id).maybeSingle(),
-          supabase.from("reviews").select("rating, body").eq("user_id", user.id).eq("vendor_id", v.id).maybeSingle(),
-          supabase
-            .from("playlists")
-            .select("id, title, playlist_items(vendor_id)")
-            .eq("owner_id", user.id)
-            .order("created_at", { ascending: false }),
-        ])
-      : null,
-  ]);
-  const saved = Boolean(mine?.[0].data);
-  const myReview = (mine?.[1].data as { rating: number; body: string | null } | null) ?? null;
-  const myPlaylists = ((mine?.[2].data ?? []) as { id: string; title: string; playlist_items: { vendor_id: string }[] }[]).map(
-    (p) => ({ id: p.id, title: p.title, has: p.playlist_items.some((i) => i.vendor_id === v.id) }),
-  );
-  const name = cleanName(v.name);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Restaurant",
-    name,
-    url: `${SITE_URL}/vendor/${v.slug}`,
-    servesCuisine: v.category,
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: v.area_name ? `${v.area_name}, Lucknow` : "Lucknow",
-      addressRegion: "Uttar Pradesh",
-      addressCountry: "IN",
-    },
-    ...(v.review_count > 0
-      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: v.avg_rating, reviewCount: v.review_count } }
-      : {}),
-  };
+  const user = await getUser();
+  const [similar, featuredIn, reviews, mine] = await Promise.all([
+    getSimilar(v),
+    playlistsForVendor(v.id),
+    listReviews(v.id),
+    user ? myVendorState(user.id, v.id) : null,
+  ]);
+  const signIn = `/login?next=/vendor/${v.slug}`;
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-10">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={jsonLd(v)} />
       <nav aria-label="Breadcrumb" className="text-sm text-muted">
         <Link href="/explore" className="hover:text-cream">Explore</Link>
-        {v.area_slug ? (
-          <>
-            {" "}<span aria-hidden="true">/</span>{" "}
-            <Link href={`/area/${v.area_slug}`} className="hover:text-cream">{v.area_name}</Link>
-          </>
-        ) : null}
+        {v.areaSlug ? <> / <Link href={`/area/${v.areaSlug}`} className="hover:text-cream">{v.areaName}</Link></> : null}
       </nav>
 
       <div className="mt-4 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <p className="text-sm uppercase tracking-wider text-caramel">{v.category} · {v.kind}</p>
-          <h1 className="mt-2 font-display text-4xl leading-tight text-cream md:text-5xl">{name}</h1>
+          <h1 className="mt-2 font-display text-4xl leading-tight text-cream md:text-5xl">{v.name}</h1>
           {v.speciality ? <p className="mt-3 text-lg text-muted">Known for: <span className="text-cream">{v.speciality}</span></p> : null}
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <DietBadge diet={v.diet} />
-            {v.area_name ? (
-              <Link href={`/area/${v.area_slug}`} className="rounded-full bg-card-2 px-2.5 py-1 text-xs text-cream hover:text-beige">
-                {v.area_name}
-              </Link>
-            ) : null}
-            {v.is_verified ? (
-              <span className="rounded-full bg-card-2 px-2.5 py-1 text-xs text-veg">Verified by EatAtEzz</span>
-            ) : (
-              <span className="rounded-full bg-card-2 px-2.5 py-1 text-xs text-muted">Not yet verified on the ground</span>
-            )}
+            {v.areaSlug ? <Link href={`/area/${v.areaSlug}`} className="rounded-full bg-card-2 px-2.5 py-1 text-xs text-cream hover:text-beige">{v.areaName}</Link> : null}
+            <span className={`rounded-full bg-card-2 px-2.5 py-1 text-xs ${v.verified ? "text-veg" : "text-muted"}`}>
+              {v.verified ? "Verified by EatAtEzz" : "Not yet verified on the ground"}
+            </span>
           </div>
           {v.landmark ? <p className="mt-4 text-sm text-muted">Landmark: {v.landmark}</p> : null}
-          {inPlaylists.length ? (
+          {featuredIn.length ? (
             <div className="mt-6">
               <p className="text-sm text-muted">Featured in</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {inPlaylists.map((pl) => (
-                  <Link
-                    key={pl.slug}
-                    href={`/playlist/${pl.slug}`}
-                    className="rounded-full border border-line bg-card px-3 py-1.5 text-sm text-cream hover:border-caramel"
-                  >
-                    {pl.title}
-                  </Link>
+                {featuredIn.map((p) => (
+                  <Link key={p.slug} href={`/playlist/${p.slug}`} className="rounded-full border border-line bg-card px-3 py-1.5 text-sm text-cream hover:border-caramel">{p.title}</Link>
                 ))}
               </div>
             </div>
           ) : null}
         </div>
 
-        <aside className="h-fit rounded-2xl border border-line bg-card p-6">
-          <p className="text-sm text-muted">Ratings</p>
-          {v.review_count > 0 ? (
+        <aside className={`${card} h-fit p-6`}>
+          <p className="text-sm text-muted">EatAtEzz rating</p>
+          {v.reviewCount > 0 ? (
             <p className="mt-1 font-display text-3xl text-cream">
-              ★ {Number(v.avg_rating).toFixed(1)}{" "}
-              <span className="text-base text-muted">({v.review_count} EatAtEzz reviews)</span>
+              {v.rating.toFixed(1)} <Stars value={v.rating} className="text-xl" /> <span className="text-base text-muted">({v.reviewCount})</span>
             </p>
           ) : (
-            <p className="mt-1 text-cream">No EatAtEzz reviews yet. Be the first.</p>
+            <p className="mt-1 text-cream">No reviews yet. Be the first.</p>
           )}
           <div className="mt-6 grid gap-3">
-            {user ? (
-              <SaveButton vendorId={v.id} slug={v.slug} initial={saved} />
-            ) : (
-              <Link
-                href={`/login?next=/vendor/${v.slug}`}
-                className="rounded-xl border border-line px-4 py-3 text-center text-sm text-cream hover:border-beige"
-              >
-                ♡ Sign in to save
-              </Link>
-            )}
-            <a
-              href={directionsUrl(v.google_place_id, v.name)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-beige/50 bg-beige/10 px-4 py-3 text-center font-medium text-beige hover:bg-beige/20"
-            >
-              Get directions
-            </a>
-            <a
-              href={mapsUrl(v.google_place_id, v.name)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-line px-4 py-3 text-center text-cream hover:border-beige"
-            >
-              Open in Google Maps
-            </a>
+            {mine ? <SaveButton vendorId={v.id} slug={v.slug} saved={mine.saved} /> : <ButtonLink href={signIn} variant="secondary">♡ Sign in to save</ButtonLink>}
+            <a href={directionsUrl(v)} target="_blank" rel="noopener noreferrer" className={button("primary", "md", "py-3")}>Get directions</a>
+            <a href={mapsUrl(v)} target="_blank" rel="noopener noreferrer" className={button("secondary", "md", "py-3")}>Open in Google Maps</a>
+            <ShareButton title={v.name} text={v.speciality ?? undefined} path={`/vendor/${v.slug}`} />
           </div>
-          <p className="mt-4 text-xs text-muted">
-            Is this your shop?{" "}
-            <a className="underline underline-offset-4" href={`mailto:hello@eatatezz.in?subject=Claim%20${encodeURIComponent(name)}`}>
-              Claim this listing
-            </a>
-          </p>
+          <div className="mt-5 border-t border-line pt-4">
+            {mine ? <ReportForm vendorId={v.id} /> : null}
+            <p className="mt-3 text-xs text-muted">
+              Is this your shop? <a className="underline underline-offset-4" href={`mailto:hello@eatatezz.in?subject=${encodeURIComponent(`Claim ${v.name}`)}`}>Claim this listing</a>
+            </p>
+          </div>
         </aside>
       </div>
 
-      <section className="mt-16 grid gap-8 lg:grid-cols-[1.4fr_1fr]" aria-labelledby="reviews">
-        <div>
-          <h2 id="reviews" className="font-display text-2xl text-cream">
-            Reviews {v.review_count > 0 ? <span className="text-base text-muted">({v.review_count})</span> : null}
-          </h2>
-          {reviews.length === 0 ? (
-            <p className="mt-4 rounded-2xl border border-dashed border-line p-6 text-muted">
-              No reviews yet. Tell Lucknow what to order here.
-            </p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {reviews.map((r) => (
-                <li key={r.id} className="rounded-2xl border border-line bg-card p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-cream">{r.author}</p>
-                    <p className="text-sm text-beige" aria-label={`${r.rating} out of 5`}>
-                      {"★".repeat(r.rating)}
-                      <span className="text-line">{"★".repeat(5 - r.rating)}</span>
-                    </p>
-                  </div>
-                  {r.body ? <p className="mt-2 text-sm text-muted">{r.body}</p> : null}
-                  <p className="mt-2 text-xs text-muted">
-                    {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="space-y-4">
-          {user ? (
-            <>
-              <ReviewForm vendorId={v.id} slug={v.slug} existing={myReview} />
-              <AddToPlaylist vendorId={v.id} slug={v.slug} playlists={myPlaylists} />
-            </>
-          ) : (
-            <div className="rounded-2xl border border-line bg-card p-6">
-              <p className="text-cream">Ate here?</p>
-              <p className="mt-1 text-sm text-muted">Sign in to rate it, save it or add it to your own playlist.</p>
-              <Link
-                href={`/login?next=/vendor/${v.slug}`}
-                className="mt-4 inline-block rounded-xl border border-beige/50 bg-beige/10 px-5 py-2.5 text-sm text-beige hover:bg-beige/20"
-              >
-                Sign in with Google
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {similar.length > 0 ? (
-        <section className="mt-16" aria-labelledby="similar">
-          <h2 id="similar" className="font-display text-2xl text-cream">More {v.category.toLowerCase()} nearby</h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {similar.map((s) => (
-              <VendorCard key={s.id} v={s} />
-            ))}
+      <Section id="reviews" title={<>Reviews {v.reviewCount ? <span className="text-base text-muted">({v.reviewCount})</span> : null}</>}>
+        <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+          <ReviewList reviews={reviews} />
+          <div className="space-y-4">
+            {mine ? (
+              <>
+                <ReviewForm vendorId={v.id} slug={v.slug} existing={mine.review} />
+                <AddToPlaylist vendorId={v.id} slug={v.slug} playlists={mine.playlists} />
+              </>
+            ) : (
+              <div className={`${card} p-6`}>
+                <p className="text-cream">Ate here?</p>
+                <p className="mt-1 text-sm text-muted">Sign in to rate it, save it or add it to your own playlist.</p>
+                <ButtonLink href={signIn} className="mt-4">Sign in with Google</ButtonLink>
+              </div>
+            )}
           </div>
-        </section>
+        </div>
+      </Section>
+
+      {similar.length ? (
+        <Section id="similar" title={`More ${v.category.toLowerCase()} nearby`}>
+          <Grid>{similar.map((s) => <VendorCard key={s.id} v={s} />)}</Grid>
+        </Section>
       ) : null}
     </div>
   );
