@@ -19,6 +19,7 @@ export function Footer() {
             <li><Link className="hover:text-cream" href="/areas">Lucknow by area</Link></li>
             <li><Link className="hover:text-cream" href="/dishes">Famous dishes</Link></li>
             <li><Link className="hover:text-cream" href="/decide">Decide for me</Link></li>
+            <li><Link className="hover:text-cream" href="/suggest">Suggest a spot</Link></li>
           </ul>
         </div>
         <div className="text-sm">

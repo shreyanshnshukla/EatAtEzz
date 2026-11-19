@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { C } from "@/lib/theme";
 import { SECTION_LABEL, type Playlist } from "@/lib/types";
 
-const ORDER: Playlist["section"][] = ["non_veg", "veg", "vegan", "underrated", "area"];
+const ORDER: Playlist["section"][] = ["non_veg", "veg", "vegan", "underrated", "area", "community"];
 
 export default function Playlists() {
   const [lists, setLists] = useState<Playlist[] | null>(null);
@@ -29,7 +29,7 @@ export default function Playlists() {
 
   if (!lists) return <ActivityIndicator color={C.beige} style={{ marginTop: 40 }} />;
 
-  const sections = ORDER.map((k) => ({ title: SECTION_LABEL[k], data: lists.filter((l) => l.section === k) })).filter(
+  const sections = ORDER.map((k) => ({ title: SECTION_LABEL[k], data: lists.filter((l) => l.section === k && (k !== "community" || l.count >= 3)) })).filter(
     (x) => x.data.length,
   );
 

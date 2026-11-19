@@ -154,17 +154,17 @@ export async function getPlaylists(): Promise<Playlist[]> {
 export async function getPlaylist(slug: string) {
   const { data, error } = await supabase
     .from("playlists")
-    .select("id, slug, title, tagline, description, section, curator, playlist_items(position, vendor_id, vendors(name))")
+    .select("id, slug, title, tagline, description, section, curator, owner_id, playlist_items(position, vendor_id, vendors(name))")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const row = data as unknown as PlaylistRow & { playlist_items: { position: number; vendor_id: string }[] };
+  const row = data as unknown as PlaylistRow & { owner_id: string | null; playlist_items: { position: number; vendor_id: string }[] };
   const order = [...row.playlist_items].sort((a, b) => a.position - b.position).map((i) => i.vendor_id);
   const { data: cards } = await supabase.from("vendor_cards").select("*").in("id", order);
   const byId = new Map(((cards ?? []) as VendorCard[]).map((c) => [c.id, c]));
   const vendors = order.map((id) => byId.get(id)).filter((v): v is VendorCard => Boolean(v));
-  return { playlist: toPlaylist(row), vendors };
+  return { playlist: toPlaylist(row), vendors, ownerId: row.owner_id };
 }
 
 export async function getPlaylistsForVendor(vendorId: string) {
@@ -175,4 +175,28 @@ export async function getPlaylistsForVendor(vendorId: string) {
   return ((data ?? []) as unknown as { playlists: { slug: string; title: string } | null }[])
     .map((r) => r.playlists)
     .filter((p): p is { slug: string; title: string } => Boolean(p));
+}
+
+export type ReviewView = { id: string; rating: number; body: string | null; created_at: string; author: string };
+
+export async function getReviews(vendorId: string): Promise<ReviewView[]> {
+  const { data } = await supabase
+    .from("reviews")
+    .select("id, rating, body, created_at, profiles(display_name)")
+    .eq("vendor_id", vendorId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  return ((data ?? []) as unknown as {
+    id: string;
+    rating: number;
+    body: string | null;
+    created_at: string;
+    profiles: { display_name: string | null } | null;
+  }[]).map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    body: r.body,
+    created_at: r.created_at,
+    author: (r.profiles?.display_name ?? "A Lucknow foodie").split(" ")[0],
+  }));
 }

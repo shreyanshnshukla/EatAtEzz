@@ -22,7 +22,7 @@ export type Playlist = {
   title: string;
   tagline: string | null;
   description: string | null;
-  section: "non_veg" | "veg" | "vegan" | "underrated" | "area";
+  section: "non_veg" | "veg" | "vegan" | "underrated" | "area" | "community";
   curator: string;
   count: number;
 };
@@ -40,6 +40,7 @@ export const SECTION_LABEL: Record<Playlist["section"], string> = {
   vegan: "Vegan",
   underrated: "Underrated & everyday",
   area: "Area walks",
+  community: "From the community",
 };
 
 export function cleanName(name: string) {

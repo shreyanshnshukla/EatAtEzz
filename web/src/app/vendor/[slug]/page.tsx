@@ -3,10 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DietBadge } from "@/components/DietBadge";
 import { VendorCard } from "@/components/VendorCard";
-import { getPlaylistsForVendor, getSimilar, getVendor } from "@/lib/data";
+import { AddToPlaylist } from "@/components/AddToPlaylist";
+import { ReviewForm } from "@/components/ReviewForm";
+import { SaveButton } from "@/components/SaveButton";
+import { getPlaylistsForVendor, getReviews, getSimilar, getVendor } from "@/lib/data";
+import { createSupabaseServer } from "@/lib/auth/server";
 import { cleanName, directionsUrl, mapsUrl, SITE_URL } from "@/lib/format";
 
-export const revalidate = 3600;
 
 type Params = Promise<{ slug: string }>;
 
@@ -27,7 +30,31 @@ export default async function VendorPage({ params }: { params: Params }) {
   const { slug } = await params;
   const v = await getVendor(slug);
   if (!v) notFound();
-  const [similar, inPlaylists] = await Promise.all([getSimilar(v), getPlaylistsForVendor(v.id)]);
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [similar, inPlaylists, reviews, mine] = await Promise.all([
+    getSimilar(v),
+    getPlaylistsForVendor(v.id),
+    getReviews(v.id),
+    user
+      ? Promise.all([
+          supabase.from("saved_vendors").select("vendor_id").eq("user_id", user.id).eq("vendor_id", v.id).maybeSingle(),
+          supabase.from("reviews").select("rating, body").eq("user_id", user.id).eq("vendor_id", v.id).maybeSingle(),
+          supabase
+            .from("playlists")
+            .select("id, title, playlist_items(vendor_id)")
+            .eq("owner_id", user.id)
+            .order("created_at", { ascending: false }),
+        ])
+      : null,
+  ]);
+  const saved = Boolean(mine?.[0].data);
+  const myReview = (mine?.[1].data as { rating: number; body: string | null } | null) ?? null;
+  const myPlaylists = ((mine?.[2].data ?? []) as { id: string; title: string; playlist_items: { vendor_id: string }[] }[]).map(
+    (p) => ({ id: p.id, title: p.title, has: p.playlist_items.some((i) => i.vendor_id === v.id) }),
+  );
   const name = cleanName(v.name);
 
   const jsonLd = {
@@ -105,9 +132,19 @@ export default async function VendorPage({ params }: { params: Params }) {
               <span className="text-base text-muted">({v.review_count} EatAtEzz reviews)</span>
             </p>
           ) : (
-            <p className="mt-1 text-cream">No EatAtEzz reviews yet. Be the first, coming soon in the app.</p>
+            <p className="mt-1 text-cream">No EatAtEzz reviews yet. Be the first.</p>
           )}
           <div className="mt-6 grid gap-3">
+            {user ? (
+              <SaveButton vendorId={v.id} slug={v.slug} initial={saved} />
+            ) : (
+              <Link
+                href={`/login?next=/vendor/${v.slug}`}
+                className="rounded-xl border border-line px-4 py-3 text-center text-sm text-cream hover:border-beige"
+              >
+                ♡ Sign in to save
+              </Link>
+            )}
             <a
               href={directionsUrl(v.google_place_id, v.name)}
               target="_blank"
@@ -133,6 +170,56 @@ export default async function VendorPage({ params }: { params: Params }) {
           </p>
         </aside>
       </div>
+
+      <section className="mt-16 grid gap-8 lg:grid-cols-[1.4fr_1fr]" aria-labelledby="reviews">
+        <div>
+          <h2 id="reviews" className="font-display text-2xl text-cream">
+            Reviews {v.review_count > 0 ? <span className="text-base text-muted">({v.review_count})</span> : null}
+          </h2>
+          {reviews.length === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-line p-6 text-muted">
+              No reviews yet. Tell Lucknow what to order here.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {reviews.map((r) => (
+                <li key={r.id} className="rounded-2xl border border-line bg-card p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-cream">{r.author}</p>
+                    <p className="text-sm text-beige" aria-label={`${r.rating} out of 5`}>
+                      {"★".repeat(r.rating)}
+                      <span className="text-line">{"★".repeat(5 - r.rating)}</span>
+                    </p>
+                  </div>
+                  {r.body ? <p className="mt-2 text-sm text-muted">{r.body}</p> : null}
+                  <p className="mt-2 text-xs text-muted">
+                    {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="space-y-4">
+          {user ? (
+            <>
+              <ReviewForm vendorId={v.id} slug={v.slug} existing={myReview} />
+              <AddToPlaylist vendorId={v.id} slug={v.slug} playlists={myPlaylists} />
+            </>
+          ) : (
+            <div className="rounded-2xl border border-line bg-card p-6">
+              <p className="text-cream">Ate here?</p>
+              <p className="mt-1 text-sm text-muted">Sign in to rate it, save it or add it to your own playlist.</p>
+              <Link
+                href={`/login?next=/vendor/${v.slug}`}
+                className="mt-4 inline-block rounded-xl border border-beige/50 bg-beige/10 px-5 py-2.5 text-sm text-beige hover:bg-beige/20"
+              >
+                Sign in with Google
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
 
       {similar.length > 0 ? (
         <section className="mt-16" aria-labelledby="similar">

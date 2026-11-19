@@ -2,7 +2,7 @@
 
 Expo (React Native) + Expo Router, on the same Supabase database as the website.
 
-**Screens:** Explore (search + veg/non-veg/vegan), Food Playlists, Decide for me, Profile (Google sign-in), plus vendor and playlist pages.
+**Screens:** Explore (search + veg/non-veg/vegan), Food Playlists, Decide for me, Profile (Google sign-in, Want to try list, your playlists), plus vendor pages (save, rate and review, add to playlist), playlist pages and Suggest a spot.
 
 ## Run it
 

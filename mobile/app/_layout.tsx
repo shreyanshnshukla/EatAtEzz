@@ -23,6 +23,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="vendor/[slug]" options={{ title: "" }} />
         <Stack.Screen name="playlist/[slug]" options={{ title: "" }} />
+        <Stack.Screen name="suggest" options={{ title: "Suggest a spot" }} />
       </Stack>
     </ThemeProvider>
   );

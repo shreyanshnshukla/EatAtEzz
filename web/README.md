@@ -32,7 +32,8 @@ Get the key from Supabase → Project Settings → API keys. The anon/publishabl
 | `/dishes` | Lucknow's famous veg, non-veg and vegan dishes |
 | `/decide` | "Decide for me": picks one spot from your area, diet and craving |
 | `/playlists`, `/playlist/[slug]` | 24 Food Playlists (non-veg, veg, vegan, underrated, area walks) |
-| `/login`, `/account` | Google sign-in and a simple account page |
+| `/login`, `/account` | Google sign-in; account shows Want to try list, your playlists, your suggestions |
+| `/suggest` | Suggest a missing stall (goes to a review queue) |
 | `/sitemap.xml`, `/robots.txt` | Generated for SEO |
 
 ## Database
@@ -40,6 +41,15 @@ Get the key from Supabase → Project Settings → API keys. The anon/publishabl
 Schema: `supabase/migrations/0001_schema.sql` (cities, areas, vendors, dishes, profiles, reviews, saved_vendors, the `vendor_cards` view, and the `decide_for_me` / `nearby_vendors` functions). It is already applied to the `eatatezz` Supabase project.
 
 Vendor locations: `vendors.location` is empty for now. Fill it from on-the-ground checks (or a licensed source) and set `is_verified = true`. Google Place IDs are stored so pages can link to Google Maps directions.
+
+## Community features
+
+- **Reviews:** 1–5 stars plus an optional note, one per person per spot (edit or delete anytime). Averages show on cards and shop pages.
+- **Want to try:** heart a spot to save it; it appears on `/account`.
+- **Your playlists:** create from `/account` or straight from a shop page; owners can remove spots or delete the playlist. Community playlists show on `/playlists` once they have 3+ spots.
+- **Suggest a spot:** `/suggest` (max 10 a day per person). Review them in Supabase → `vendor_suggestions`, set `status` to `approved` or `rejected`, and add approved ones to `vendors`.
+
+All of this is protected by row-level security: people can only change their own reviews, saves, playlists and suggestions.
 
 ## Turn on Google sign-in (one-time, about 10 minutes)
 
@@ -63,6 +73,6 @@ New users get a row in `profiles` automatically (name and photo from Google).
 
 ## Next up
 
-- Reviews, saved spots and user-made playlists (tables and RLS are ready)
+- Admin screen to approve suggested spots (for now: Supabase → Table editor → `vendor_suggestions`)
 - Verified locations → per-vendor pins and "near me"
 - Vendor claim flow

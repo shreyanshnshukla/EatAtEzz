@@ -38,7 +38,7 @@ export type Dish = {
   season: string | null;
 };
 
-export type PlaylistSection = "non_veg" | "veg" | "vegan" | "underrated" | "area";
+export type PlaylistSection = "non_veg" | "veg" | "vegan" | "underrated" | "area" | "community";
 
 export type Playlist = {
   id: string;

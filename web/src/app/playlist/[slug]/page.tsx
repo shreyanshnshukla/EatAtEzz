@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DietBadge } from "@/components/DietBadge";
 import { SECTION_LABEL } from "@/components/PlaylistCard";
+import { DeletePlaylist, RemoveFromPlaylist } from "@/components/OwnerControls";
+import { getUser } from "@/lib/auth/server";
 import { getPlaylist } from "@/lib/data";
 import { cleanName, directionsUrl, SITE_URL } from "@/lib/format";
 
@@ -23,7 +25,9 @@ export default async function PlaylistPage({ params }: { params: Params }) {
   const { slug } = await params;
   const res = await getPlaylist(slug);
   if (!res) notFound();
-  const { playlist: p, vendors } = res;
+  const { playlist: p, vendors, ownerId } = res;
+  const user = await getUser();
+  const isOwner = Boolean(user && ownerId && user.id === ownerId);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -53,7 +57,18 @@ export default async function PlaylistPage({ params }: { params: Params }) {
         <h1 className="mt-2 font-display text-4xl leading-tight text-cream md:text-5xl">{p.title}</h1>
         {p.tagline ? <p className="mt-2 text-lg italic text-beige">{p.tagline}</p> : null}
         {p.description ? <p className="mt-4 max-w-2xl text-muted">{p.description}</p> : null}
+        {isOwner ? (
+          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
+            <p className="text-sm text-muted">This is your playlist. Add spots from any shop page.</p>
+            <DeletePlaylist playlistId={p.id} />
+          </div>
+        ) : null}
       </header>
+      {vendors.length === 0 ? (
+        <p className="mt-8 rounded-2xl border border-dashed border-line p-8 text-center text-muted">
+          No spots yet. Open any shop and use &ldquo;Add to your playlist&rdquo;.
+        </p>
+      ) : null}
 
       <ol className="mt-8 space-y-3">
         {vendors.map((v, i) => (
@@ -71,6 +86,7 @@ export default async function PlaylistPage({ params }: { params: Params }) {
                 {v.area_name ? <span className="text-xs text-muted">{v.area_name}</span> : null}
               </div>
             </div>
+            {isOwner ? <RemoveFromPlaylist playlistId={p.id} vendorId={v.id} playlistSlug={p.slug} /> : null}
             <a
               href={directionsUrl(v.google_place_id, v.name)}
               target="_blank"

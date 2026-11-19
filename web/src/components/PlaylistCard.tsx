@@ -8,6 +8,7 @@ export const SECTION_LABEL: Record<Playlist["section"], string> = {
   vegan: "Vegan",
   underrated: "Underrated",
   area: "Area walk",
+  community: "Community",
 };
 
 function Dot({ section }: { section: Playlist["section"] }) {

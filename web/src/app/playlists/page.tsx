@@ -16,6 +16,7 @@ const SECTIONS: { key: Playlist["section"]; title: string; blurb: string }[] = [
   { key: "vegan", title: "Vegan", blurb: "Plant-based in the city of kebabs." },
   { key: "underrated", title: "Underrated & everyday", blurb: "Hidden gems, momos and pocket-friendly picks." },
   { key: "area", title: "Area walks", blurb: "Eat your way through one neighbourhood." },
+  { key: "community", title: "From the community", blurb: "Playlists made by Lucknow foodies on EatAtEzz." },
 ];
 
 export default async function Playlists() {
@@ -25,10 +26,10 @@ export default async function Playlists() {
       <p className="text-sm uppercase tracking-[0.2em] text-caramel">Food Playlists</p>
       <h1 className="mt-2 font-display text-4xl text-cream md:text-5xl">Lucknow, one playlist at a time</h1>
       <p className="mt-3 max-w-2xl text-muted">
-        {playlists.length} trails picked by the EatAtEzz team. Food bloggers&apos; playlists are coming soon.
+        Trails picked by the EatAtEzz team and by Lucknow foodies. <a href="/account" className="text-beige underline underline-offset-4">Make your own</a>.
       </p>
       {SECTIONS.map((s) => {
-        const list = playlists.filter((p) => p.section === s.key);
+        const list = playlists.filter((p) => p.section === s.key && (p.section !== "community" || p.item_count >= 3));
         if (!list.length) return null;
         return (
           <section key={s.key} className="mt-12" aria-labelledby={`s-${s.key}`}>
