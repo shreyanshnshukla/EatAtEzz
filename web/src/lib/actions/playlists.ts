@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { fail, ok, SIGN_IN_REQUIRED, type ActionResult } from "./result";
+import { dbLimitMessage, fail, isUuid, ok, SIGN_IN_REQUIRED, type ActionResult } from "./result";
 import { session } from "./session";
 
 const MAX_ITEMS = 50;
@@ -35,20 +35,21 @@ export async function createPlaylist(_prev: ActionResult, form: FormData): Promi
 }
 
 export async function addToPlaylist(playlistId: string, vendorId: string, slug: string): Promise<ActionResult> {
+  if (!isUuid(playlistId, vendorId)) return fail("Invalid request.");
   const { supabase, user } = await session();
   if (!user) return fail(SIGN_IN_REQUIRED);
 
   const { count } = await supabase.from("playlist_items").select("vendor_id", { count: "exact", head: true }).eq("playlist_id", playlistId);
-  if ((count ?? 0) >= MAX_ITEMS) return fail(`A playlist can hold ${MAX_ITEMS} spots.`);
-
   const { error } = await supabase.from("playlist_items").insert({ playlist_id: playlistId, vendor_id: vendorId, position: (count ?? 0) + 1 });
-  if (error) return fail(error.code === "23505" ? "Already in that playlist." : "Couldn't add it. Try again.");
+  if (error?.code === "23505") return fail("Already in that playlist.");
+  if (error) return fail(dbLimitMessage(error) ? `A playlist can hold ${MAX_ITEMS} spots.` : "Couldn't add it. Try again.");
 
   revalidatePath(`/vendor/${slug}`);
   return ok("Added to your playlist.");
 }
 
 export async function removeFromPlaylist(playlistId: string, vendorId: string, playlistSlug: string): Promise<ActionResult> {
+  if (!isUuid(playlistId, vendorId)) return fail("Invalid request.");
   const { supabase, user } = await session();
   if (!user) return fail(SIGN_IN_REQUIRED);
   const { error } = await supabase.from("playlist_items").delete().eq("playlist_id", playlistId).eq("vendor_id", vendorId);
@@ -58,6 +59,7 @@ export async function removeFromPlaylist(playlistId: string, vendorId: string, p
 }
 
 export async function deletePlaylist(playlistId: string): Promise<void> {
+  if (!isUuid(playlistId)) return;
   const { supabase, user } = await session();
   if (!user) redirect("/login");
   await supabase.from("playlists").delete().eq("id", playlistId).eq("owner_id", user.id);

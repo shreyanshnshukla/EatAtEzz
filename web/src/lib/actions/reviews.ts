@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { fail, ok, SIGN_IN_REQUIRED, type ActionResult } from "./result";
+import { dbLimitMessage, fail, isUuid, ok, SIGN_IN_REQUIRED, type ActionResult } from "./result";
 import { session } from "./session";
 
 const ReviewInput = z.object({
@@ -22,13 +22,14 @@ export async function saveReview(_prev: ActionResult, form: FormData): Promise<A
   const { error } = await supabase
     .from("reviews")
     .upsert({ vendor_id: vendorId, user_id: user.id, rating, body }, { onConflict: "vendor_id,user_id" });
-  if (error) return fail("Couldn't save your review. Try again.");
+  if (error) return fail(dbLimitMessage(error) ?? "Couldn't save your review. Try again.");
 
   revalidatePath(`/vendor/${slug}`);
   return ok("Review saved. Shukriya!");
 }
 
 export async function deleteReview(vendorId: string, slug: string): Promise<ActionResult> {
+  if (!isUuid(vendorId)) return fail("Invalid request.");
   const { supabase, user } = await session();
   if (!user) return fail(SIGN_IN_REQUIRED);
   const { error } = await supabase.from("reviews").delete().eq("vendor_id", vendorId).eq("user_id", user.id);

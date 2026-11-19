@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { REPORT_REASONS } from "@/lib/domain";
-import { fail, ok, SIGN_IN_REQUIRED, type ActionResult } from "./result";
+import { dbLimitMessage, fail, ok, SIGN_IN_REQUIRED, type ActionResult } from "./result";
 import { session } from "./session";
 
 const DAILY_LIMIT = 10;
@@ -36,7 +36,7 @@ export async function suggestSpot(_prev: ActionResult, form: FormData): Promise<
 
   const { area_id, ...rest } = parsed.data;
   const { error } = await supabase.from("vendor_suggestions").insert({ ...rest, area_id: area_id ?? null });
-  if (error) return fail("Couldn't send it. Try again.");
+  if (error) return fail(dbLimitMessage(error) ?? "Couldn't send it. Try again.");
 
   revalidatePath("/account");
   return ok(`Thanks! We'll check "${rest.name}" and add it soon.`);
@@ -65,6 +65,6 @@ export async function reportVendor(_prev: ActionResult, form: FormData): Promise
 
   const { vendorId, reason, note } = parsed.data;
   const { error } = await supabase.from("vendor_reports").insert({ vendor_id: vendorId, reason, note });
-  if (error) return fail("Couldn't send it. Try again.");
+  if (error) return fail(dbLimitMessage(error) ?? "Couldn't send it. Try again.");
   return ok("Thanks, we'll check it.");
 }
