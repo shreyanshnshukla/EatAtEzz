@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     page("/", 1),
     ...["/explore", "/playlists", "/areas", "/dishes"].map((p) => page(p, 0.8)),
     page("/decide", 0.6),
+    ...["/privacy", "/terms"].map((p) => page(p, 0.2)),
     ...areas.map((a) => page(`/area/${a.slug}`, 0.7)),
     ...playlists.map((p) => page(`/playlist/${p.slug}`, 0.7)),
     ...(vendors ?? []).map((v) => page(`/vendor/${v.slug}`, 0.5, new Date(v.updated_at))),

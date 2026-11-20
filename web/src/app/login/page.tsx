@@ -38,7 +38,11 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <p role="alert" className="mt-5 rounded-xl border border-nonveg/50 bg-nonveg/10 p-3 text-sm text-cream">Sign-in didn&apos;t finish. Please try again.</p>
         ) : null}
         <div className="mt-8"><GoogleButton next={next} /></div>
-        <p className="mt-6 text-xs leading-relaxed text-muted">We only use your name, email and photo from Google to set up your profile.</p>
+        <p className="mt-6 text-xs leading-relaxed text-muted">
+          We only use your name, email and photo from Google to set up your profile. By signing in you agree to the{" "}
+          <Link href="/terms" className="text-beige underline underline-offset-4">Terms</Link> and{" "}
+          <Link href="/privacy" className="text-beige underline underline-offset-4">Privacy policy</Link>.
+        </p>
         <p className="mt-6 text-sm">
           <Link href="/explore" className="text-beige underline-offset-4 hover:underline">Just browsing? Explore without signing in</Link>
         </p>
